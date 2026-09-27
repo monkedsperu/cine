@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cine Bot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Contenido (claro) */
+  --bg:        #f3f4f9;
+  --card:      #ffffff;
+  --border:    #e6e9f0;
+  --text:      #1f1f2e;
+  --muted:     #8d90a5;
+  /* Sidebar (oscuro) */
+  --side:      #181824;
+  --side-2:    #22222f;
+  --side-line: #2c2c3a;
+  --side-text: #c3c3d4;
+  --side-muted:#6f6f85;
+  --side-head: #3dd598;
+  /* Acentos */
+  --purple:    #8f5fe8;
+  --purple-2:  #7a48de;
+  --cyan:      #1ccfd9;
+  --pink:      #fe5c7c;
+  --green:     #2fcc71;
+  --yellow:    #ffc100;
+  --orange:    #f96b1a;
+  --orange-2:  #fbb03b;
+  /* Butacas */
+  --seat-av:   #ffffff;   /* libre: blanco con borde */
+  --seat-av-b: #c9cedb;
+  --seat-oc:   #d9dce6;   /* ocupada: gris macizo, claramente no disponible */
+  --seat-tg:   #8f5fe8;   /* objetivo: morado */
+  --seat-held: #2fcc71;   /* retenida por el job: verde */
+  --seat-lost: #fe5c7c;   /* objetivo perdido: contorno rojo discontinuo con ✕ */
+  --radius:    6px;
+  --shadow:    0 1px 3px rgba(20,20,40,.06);
+  --side-w:    280px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Roboto', -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+button, input, select { font-family: inherit; }
+
+/* ── Layout ── */
+.app { display: grid; grid-template-columns: var(--side-w) 1fr; min-height: 100vh; background: linear-gradient(90deg, var(--side) var(--side-w), var(--bg) var(--side-w)); }
+.main { min-width: 0; display: flex; flex-direction: column; }
+.content { padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 20px; }
+
+/* ── Sidebar ── */
+aside { background: var(--side); color: var(--side-text); position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+.brand {
+  height: 60px; display: flex; align-items: center; gap: 10px; padding: 0 20px;
+  font-size: 1.2rem; font-weight: 700; color: #fff; border-bottom: 1px solid var(--side-line);
+}
+.brand-mark { width: 12px; height: 26px; background: var(--side-head); border-radius: 2px; }
+.brand small { font-weight: 400; color: var(--side-muted); font-size: .8rem; }
+.side-sec { padding: 18px 20px; border-bottom: 1px solid var(--side-line); }
+.side-head { font-size: .72rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--side-head); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.side-head .editing { color: var(--orange-2); }
+.sum-row { display: flex; justify-content: space-between; gap: 10px; font-size: .8rem; padding: 5px 0; }
+.sum-row span:first-child { color: var(--side-muted); flex-shrink: 0; }
+.sum-row span:last-child { text-align: right; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-label { font-size: .72rem; color: var(--side-muted); margin: 12px 0 6px; }
+aside input[type=number], aside input[type=datetime-local], aside input[type=text] {
+  width: 100%; background: var(--side-2); border: 1px solid var(--side-line); border-radius: var(--radius);
+  color: #fff; padding: 8px 10px; font-size: .85rem;
+}
+aside input[type=datetime-local] { color-scheme: dark; min-width: 0; }
+aside input:focus { outline: none; border-color: var(--purple); }
+.pair { display: flex; align-items: center; gap: 8px; }
+.pair span { font-size: .75rem; color: var(--side-muted); }
+.end-clear { background: var(--side-2); color: var(--side-muted); border-color: var(--side-line); padding: 6px 12px; font-size: 1rem; }
+.end-clear:hover { color: var(--pink); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; min-height: 26px; }
+.chip {
+  background: var(--purple); color: #fff; padding: 3px 8px 3px 10px; border-radius: 14px;
+  font-size: .75rem; font-weight: 500; cursor: pointer; display: flex; align-items: center; gap: 4px;
+}
+.chip:hover { background: var(--purple-2); }
+.chip .x { font-size: 1rem; line-height: 1; opacity: .8; }
+.hint { font-size: .75rem; color: var(--side-muted); }
+
+/* ── Botones ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 9px 14px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer;
+  font-size: .82rem; font-weight: 500; transition: background .15s, color .15s, border-color .15s; white-space: nowrap;
+}
+.btn-block { width: 100%; }
+.btns { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+.btn-purple { background: var(--purple); color: #fff; }
+.btn-purple:hover { background: var(--purple-2); }
+.btn-green  { background: var(--green); color: #fff; }
+.btn-green:hover { background: #27b863; }
+.btn-pink   { background: var(--pink); color: #fff; }
+.btn-pink:hover { background: #ef4a6b; }
+.btn-outline-orange { background: transparent; color: var(--orange-2); border-color: var(--orange-2); }
+.btn-outline-orange:hover { background: var(--orange-2); color: var(--side); }
+.btn-ghost-dark { background: transparent; color: var(--side-text); border-color: var(--side-line); }
+.btn-ghost-dark:hover { border-color: var(--side-muted); color: #fff; }
+.btn-light { background: #fff; color: var(--text); border-color: var(--border); }
+.btn-light:hover { border-color: var(--purple); color: var(--purple); }
+.btn-sm { padding: 6px 10px; font-size: .78rem; }
+.btn:disabled { opacity: .4; cursor: default; pointer-events: none; }
+
+.result { border-radius: var(--radius); padding: 10px 12px; margin-top: 12px; font-size: .8rem; line-height: 1.4; }
+.result-ok  { background: rgba(47,204,113,.14); color: #5fe39a; }
+.result-err { background: rgba(254,92,124,.14); color: #ff8ea5; }
+.result-dry { background: rgba(251,176,59,.14); color: var(--orange-2); }
+
+/* ── Topbar ── */
+.topbar {
+  height: 60px; background: var(--card); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 16px; padding: 0 24px; position: sticky; top: 0; z-index: 30;
+}
+.topbar h1 { font-size: 1rem; font-weight: 500; }
+.top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.sess { display: flex; align-items: center; gap: 7px; font-size: .8rem; color: var(--muted); }
+.sess-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.sess-dot.ok { background: var(--green); }
+.role { font-size: .72rem; font-weight: 500; padding: 3px 8px; border-radius: 3px; background: rgba(143,95,232,.12); color: var(--purple); }
+
+/* ── Panel de configuración ── */
+.config-panel { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px 20px; display: none; }
+.config-panel.open { display: block; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.tab { padding: 12px 14px; font-size: .85rem; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 500; }
+.config-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+.config-note { font-size: .78rem; color: var(--muted); margin-bottom: 12px; line-height: 1.45; }
+.card-title-sm { font-size: .95rem; font-weight: 500; margin-bottom: 4px; }
+.cookie-table, .pw-table { width: 100%; border-collapse: collapse; }
+.cookie-table th, .pw-table th { text-align: left; font-size: .72rem; font-weight: 500; color: var(--muted); padding: 0 6px 6px; }
+.cookie-table td { padding: 3px 6px; }
+.pw-table td { padding: 8px 6px; border-top: 1px solid var(--border); font-size: .83rem; }
+.cfg-input, .config-side textarea {
+  width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+  font-family: 'Roboto Mono', monospace; font-size: .76rem; color: var(--text); background: #fafbfd;
+}
+.cfg-input:focus, .config-side textarea:focus { outline: none; border-color: var(--purple); background: #fff; }
+.cookie-table td:first-child { width: 28%; }
+.cookie-table td:last-child, .pw-table td:last-child { width: 36px; }
+.icon-btn { border: none; background: none; color: var(--muted); cursor: pointer; font-size: 1.1rem; padding: 2px 6px; border-radius: 4px; line-height: 1; }
+.icon-btn:hover { color: var(--pink); background: rgba(254,92,124,.08); }
+.config-side { display: flex; flex-direction: column; gap: 8px; }
+.config-side textarea { height: 90px; resize: vertical; }
+.config-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+.config-msg { font-size: .78rem; margin-top: 8px; min-height: 1em; }
+.pw-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; margin-top: 12px; max-width: 640px; }
+
+/* ── Cards ── */
+.card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; }
+.card-title { font-size: 1rem; font-weight: 500; }
+.card-sub { font-size: .8rem; color: var(--muted); margin-left: auto; }
+.card-head.orange {
+  background: linear-gradient(90deg, var(--orange), var(--orange-2)); color: #fff;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.card-head.orange .card-sub { color: rgba(255,255,255,.85); }
+.head-select { border: 1px solid var(--border); border-radius: 4px; padding: 5px 8px; font-size: .78rem; background: #fff; color: var(--text); }
+
+/* ── Filtros ── */
+.filters { display: grid; grid-template-columns: 1.2fr .9fr 1.6fr 1.2fr 1.2fr; gap: 14px; padding: 16px 20px; }
+.field label { display: block; font-size: .72rem; font-weight: 500; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .5px; }
+.field select {
+  width: 100%; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;
+  font-size: .85rem; color: var(--text); background: #fff; height: 38px;
+}
+.field select:focus { outline: none; border-color: var(--purple); }
+.field select:disabled { background: #f6f7fa; color: var(--muted); }
+
+/* ── Desplegable de películas con póster ── */
+.mdd { position: relative; }
+.mdd-btn {
+  width: 100%; height: 38px; display: flex; align-items: center; gap: 8px; text-align: left;
+  border: 1px solid var(--border); border-radius: 4px; padding: 0 10px 0 4px; background: #fff; cursor: pointer; font-size: .85rem; color: var(--text);
+}
+.mdd-btn:disabled { background: #f6f7fa; color: var(--muted); cursor: default; }
+.mdd-btn.open, .mdd-btn:focus { outline: none; border-color: var(--purple); }
+.mdd-btn img { width: 22px; height: 30px; object-fit: cover; border-radius: 2px; flex-shrink: 0; }
+.mdd-btn .t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-left: 6px; }
+.mdd-btn img + .t { padding-left: 0; }
+.mdd-btn .caret { color: var(--muted); font-size: .7rem; }
+.mdd-list {
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; width: max(100%, 340px); max-height: 420px; overflow-y: auto;
+  background: #fff; border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(20,20,40,.15); z-index: 25; padding: 4px;
+}
+.mdd-list.open { display: block; }
+.mdd-item { display: flex; gap: 10px; align-items: center; padding: 6px; border-radius: 4px; cursor: pointer; }
+.mdd-item:hover { background: #f5f2fd; }
+.mdd-item.sel { background: rgba(143,95,232,.12); }
+.mdd-item img { width: 40px; height: 58px; object-fit: cover; border-radius: 3px; background: var(--border); flex-shrink: 0; }
+.mdd-item .t { font-size: .85rem; font-weight: 500; }
+.mdd-item .s { font-size: .74rem; color: var(--muted); margin-top: 3px; }
+.rating { display: inline-block; background: var(--purple); color: #fff; font-size: .65rem; font-weight: 700; padding: 1px 5px; border-radius: 3px; }
+
+/* ── Mapa ── */
+.map-body { padding: 4px 20px 24px; }
+.screen { width: 60%; margin: 6px auto 0; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--cyan), var(--purple)); }
+.screen-label { text-align: center; font-size: .65rem; color: var(--muted); letter-spacing: 4px; text-transform: uppercase; margin-top: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; margin: 14px 0 18px; }
+.leg { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); }
+.leg .seat { width: 16px; height: 16px; font-size: .6rem; cursor: default; }
+#mapContainer { overflow-x: auto; }
+.seat-map { display: flex; flex-direction: column; align-items: center; gap: 4px; width: max-content; margin: 0 auto; }
+.seat-row { display: flex; align-items: center; gap: 3px; }
+.row-lbl { width: 24px; text-align: center; font-size: .7rem; font-weight: 500; color: var(--muted); flex-shrink: 0; }
+.seat {
+  width: 24px; height: 24px; border-radius: 4px; border: 1px solid transparent; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; font-size: .7rem; font-weight: 700; color: #fff;
+  transition: background-color .12s, border-color .12s;
+}
+.seat.av        { background: var(--seat-av); border-color: var(--seat-av-b); }
+.seat.av:hover  { background: #efe8fd; border-color: var(--purple); }
+.seat.occ       { background: var(--seat-oc); border-color: var(--seat-oc); cursor: not-allowed; }
+.seat.tgt       { background: var(--seat-tg); border-color: var(--seat-tg); }
+.seat.tgt:hover { background: var(--purple-2); border-color: var(--purple-2); }
+.seat.tgt.held  { background: var(--seat-held); border-color: var(--seat-held); }
+.seat.tgt.held:hover { background: #27b863; border-color: #27b863; }
+.seat.tgt.taken { background: #fff0f3; border: 1px dashed var(--seat-lost); color: var(--seat-lost); }
+.seat.tgt.taken:hover { background: #ffe1e8; }
+
+/* Estado de cada butaca objetivo en el job */
+.schip { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: .74rem; font-weight: 500; margin: 1px 3px 1px 0; background: #eef0f5; color: var(--text); }
+.schip.held  { background: rgba(47,204,113,.16); color: #1c9a54; }
+.schip.taken { background: rgba(254,92,124,.14); color: var(--pink); text-decoration: line-through; }
+.check-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: .78rem; color: var(--side-text); cursor: pointer; }
+.check-row input { accent-color: var(--purple); width: 15px; height: 15px; }
+.seat.wc  { background: #fff; border: 1px dashed var(--cyan); color: var(--cyan); font-weight: 400; cursor: default; }
+.seat.empty { visibility: hidden; }
+
+.empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 220px; color: var(--muted); gap: 10px; font-size: .9rem; text-align: center; }
+.empty-icon { font-size: 2.4rem; opacity: .7; }
+.spinner-wrap { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px; color: var(--muted); font-size: .85rem; }
+.spin { width: 18px; height: 18px; border: 2px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Panel de jobs ── */
+.jobs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; padding: 0 20px 20px; }
+.job-card {
+  display: flex; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: border-color .15s, box-shadow .15s; position: relative; min-width: 0;
+}
+.job-card:hover { border-color: #cdbff3; }
+.job-card.sel { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(143,95,232,.15); }
+.job-card img { width: 52px; height: 76px; object-fit: cover; border-radius: 4px; background: var(--border); flex-shrink: 0; }
+.jc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.jc-top { display: flex; align-items: center; gap: 8px; }
+.jc-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.jc-line { font-size: .76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jc-line b { color: var(--text); font-weight: 500; }
+.jc-actions { display: flex; gap: 6px; margin-top: 6px; }
+.jobs-empty { padding: 10px 20px 24px; color: var(--muted); font-size: .85rem; }
+
+.badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: .72rem; font-weight: 500; color: #fff; white-space: nowrap; }
+.badge-green { background: var(--green); }
+.badge-pink  { background: var(--pink); }
+.badge-yellow{ background: var(--yellow); color: #5a4300; }
+.badge-gray  { background: #c4c7d6; }
+.badge-cyan  { background: var(--cyan); }
+.badge-orange{ background: var(--orange); }
+
+/* ── Inferior: detalles + consola ── */
+.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.job-table { width: 100%; border-collapse: collapse; }
+.job-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: .83rem; vertical-align: top; }
+.job-table tr:last-child td { border-bottom: none; }
+.job-table td:first-child { color: var(--muted); width: 36%; }
+.job-table td:last-child { word-break: break-word; }
+.mono { font-family: 'Roboto Mono', monospace; font-size: .76rem; }
+
+.console-card { display: flex; flex-direction: column; background: var(--side); }
+.console-card .card-title { color: #fff; }
+.console-card .card-sub { color: var(--side-muted); }
+.console { flex: 1; min-height: 300px; max-height: 440px; overflow-y: auto; padding: 4px 20px 16px; font-family: 'Roboto Mono', monospace; font-size: .74rem; line-height: 1.6; }
+.log-line { white-space: pre-wrap; word-break: break-word; }
+.log-t { color: var(--side-muted); margin-right: 8px; }
+.log-job { color: var(--cyan); margin-right: 6px; }
+.log-line.info    { color: var(--side-text); }
+.log-line.success { color: var(--side-head); }
+.log-line.error   { color: var(--pink); }
+.log-line.warn    { color: var(--yellow); }
+
+/* ── Histórico ── */
+.hist-card { display: flex; flex-direction: column; }
+.hist-wrap { max-height: 360px; overflow: auto; }
+.hist-table { width: 100%; border-collapse: collapse; }
+.hist-table th {
+  text-align: left; font-size: .75rem; font-weight: 500; color: var(--muted); padding: 10px 20px;
+  border-bottom: 1px solid var(--border); background: #fafbfd; position: sticky; top: 0;
+}
+.hist-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: .82rem; }
+.hist-table td:nth-child(5) { word-break: break-word; }
+.hist-table tr:last-child td { border-bottom: none; }
+.hist-empty { color: var(--muted); text-align: center; padding: 24px !important; }
+.hist-group { cursor: pointer; }
+.hist-group:hover td { background: #fafbfd; }
+.hist-count { font-size: .75rem; font-weight: 500; color: var(--muted); margin-left: 2px; }
+.hist-toggle { display: block; font-size: .74rem; color: var(--purple); margin-top: 3px; }
+.hist-sub td { background: #fafbfd; color: var(--muted); font-size: .78rem; padding-top: 6px; padding-bottom: 6px; }
+.hist-sub td:first-child { padding-left: 36px; }
+/* Pantalla completa: ocupa toda el área central, bajo la barra superior */
+.hist-card.expanded { position: fixed; top: 60px; left: var(--side-w); right: 0; bottom: 0; z-index: 20; border-radius: 0; }
+.hist-card.expanded .hist-wrap { max-height: none; flex: 1; }
+
+@media (max-width: 1150px) {
+  .filters { grid-template-columns: 1fr 1fr 1fr; }
+  .bottom-grid, .config-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 800px) {
+  .app { grid-template-columns: 1fr; background: var(--bg); }
+  aside { position: static; height: auto; }
+  .filters { grid-template-columns: 1fr 1fr; }
+  .content { padding: 16px; }
+  .topbar { padding: 0 16px; }
+  .sess span { display: none; }
+  .hist-card.expanded { left: 0; }
+  .pw-add { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ═══════════════ SIDEBAR: EDITOR DE JOB ═══════════════ -->
+<aside>
+  <div class="brand"><div class="brand-mark"></div>Cine <small>bot</small></div>
+
+  <div class="side-sec">
+    <div class="side-head" id="editorHead">Nuevo job</div>
+    <div class="side-label" style="margin-top:0">Nombre</div>
+    <input type="text" id="jobName" maxlength="60" placeholder="Por defecto: película y hora">
+    <div style="margin-top:10px">
+      <div class="sum-row"><span>Cine</span><span id="sumCinema">—</span></div>
+      <div class="sum-row"><span>Película</span><span id="sumMovie">—</span></div>
+      <div class="sum-row"><span>Función</span><span id="sumSession">—</span></div>
+      <div class="sum-row"><span>Entrada</span><span id="sumTicket">—</span></div>
+    </div>
+    <div class="side-label">Asientos objetivo</div>
+    <div class="chips" id="targetChips"></div>
+  </div>
+
+  <div class="side-sec">
+    <div class="side-head">Automatización</div>
+    <div class="side-label" style="margin-top:0">Intervalo tras reservar (segundos)</div>
+    <input type="number" id="intervalSec" value="600" min="5" max="86400">
+    <label class="check-row" title="Mide cuánto retiene el cine las butacas (H) y tras cada reserva revisa a H/2, 2H/3, 3H/4 y H−20 s; si sigue retenida, usa los reintentos. Hasta medirla, revisa al cumplirse el intervalo.">
+      <input type="checkbox" id="adaptive" checked> Espera adaptativa: revisa a ½, ⅔, ¾ y H−20 s de la retención medida
+    </label>
+    <div class="side-label">Reintento si falla: aleatorio entre (segundos)</div>
+    <div class="pair">
+      <input type="number" id="retryMin" value="10" min="5" max="3600">
+      <span>y</span>
+      <input type="number" id="retryMax" value="20" min="5" max="3600">
+    </div>
+    <div class="side-label">Fin del job (por defecto: inicio de la función + 20 min)</div>
+    <div class="pair">
+      <input type="datetime-local" id="endTime" onchange="updateEndHint()">
+      <button class="btn end-clear" title="Quitar hora de fin" onclick="$('endTime').value='';updateEndHint()">×</button>
+    </div>
+    <div class="hint" id="endHint" style="margin-top:5px"></div>
+    <div class="btns" id="editorBtns"></div>
+    <div id="resultBox"></div>
+  </div>
+</aside>
+
+<div class="main">
+
+  <!-- ═══════════════ TOPBAR ═══════════════ -->
+  <header class="topbar">
+    <h1>Panel de reservas</h1>
+    <div class="top-right">
+      <div class="sess"><div class="sess-dot" id="sessIndicator"></div><span id="sessLabel">Conectando...</span></div>
+      <span class="role" id="roleBadge"></span>
+      <button class="btn btn-light btn-sm" onclick="toggleConfig()">⚙ Configuración</button>
+      <button class="btn btn-light btn-sm" onclick="logout()">Salir</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════ CONFIGURACIÓN ═══════════════ -->
+  <section class="config-panel" id="configPanel">
+    <div class="tabs">
+      <button class="tab active" data-tab="tabCookies" onclick="showTab('tabCookies')">Cookies y tokens</button>
+      <button class="tab" data-tab="tabPasswords" id="tabPasswordsBtn" onclick="showTab('tabPasswords')" style="display:none">Contraseñas de acceso</button>
+    </div>
+
+    <div id="tabCookies">
+      <div class="config-grid">
+        <div>
+          <div class="config-note">
+            Cookies que se envían al cine en cada llamada. Las comparten la navegación y todos los jobs.
+            Si el cine responde 403, el bot renueva la sesión solo y puede sobrescribir las que vuelva a enviar el sitio.
+          </div>
+          <table class="cookie-table">
+            <thead><tr><th>Nombre</th><th>Valor</th><th></th></tr></thead>
+            <tbody id="cookieRows"></tbody>
+          </table>
+          <div class="config-actions">
+            <button class="btn btn-light btn-sm" onclick="addCookieRow('', '')">+ Agregar cookie</button>
+            <button class="btn btn-purple btn-sm" onclick="saveCookies()">Guardar cambios</button>
+            <button class="btn btn-light btn-sm" onclick="renewSession()">🔄 Renovar desde el cine</button>
+            <button class="btn btn-light btn-sm" onclick="loadCookies()">Descartar cambios</button>
+          </div>
+          <div class="config-msg" id="configMsg"></div>
+        </div>
+        <div class="config-side">
+          <div class="card-title-sm">Cabecera Cookie</div>
+          <div class="config-note" style="margin:0">Pega una cabecera <span class="mono">Cookie</span> copiada del navegador (<span class="mono">a=1; b=2</span>) para cargarla en la tabla. Luego pulsa Guardar.</div>
+          <textarea id="cookieHeader" placeholder="userSessionId=...; __cf_bm=..."></textarea>
+          <div class="config-actions" style="margin-top:0">
+            <button class="btn btn-light btn-sm" onclick="importHeader()">Cargar en la tabla</button>
+            <button class="btn btn-light btn-sm" onclick="copyHeader()">Copiar cabecera actual</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tabPasswords" style="display:none">
+      <div class="config-note">
+        Quien tenga una de estas contraseñas puede usar la aplicación. Al eliminar una, sus sesiones abiertas se cierran.
+        Las que vienen del <span class="mono">.env</span> quedan revocadas aunque sigan en el archivo.
+      </div>
+      <table class="pw-table">
+        <thead><tr><th>Contraseña</th><th>Etiqueta</th><th>Origen</th><th>Creada</th><th></th></tr></thead>
+        <tbody id="pwRows"></tbody>
+      </table>
+      <div class="pw-add">
+        <input class="cfg-input" id="pwLabel" maxlength="40" placeholder="Etiqueta (ej. test01)">
+        <input class="cfg-input" id="pwNew" placeholder="Contraseña (vacío = generar una)">
+        <button class="btn btn-purple btn-sm" onclick="createPassword()">Crear contraseña</button>
+      </div>
+      <div class="config-msg" id="pwMsg"></div>
+    </div>
+  </section>
+
+  <div class="content">
+
+    <!-- ═══════════════ FILTROS ═══════════════ -->
+    <div class="card filters">
+      <div class="field">
+        <label for="cinemaSelect">Cine</label>
+        <select id="cinemaSelect" onchange="onCinemaChange()"><option value="">Cargando cines...</option></select>
+      </div>
+      <div class="field">
+        <label for="daySelect">Día</label>
+        <select id="daySelect" onchange="onDayChange()"></select>
+      </div>
+      <div class="field">
+        <label>Película</label>
+        <div class="mdd">
+          <button type="button" class="mdd-btn" id="movieBtn" onclick="toggleMovieDD()" disabled></button>
+          <div class="mdd-list" id="movieList"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sessionSelect">Función</label>
+        <select id="sessionSelect" onchange="onSessionChange()" disabled><option value="">Elige una película</option></select>
+      </div>
+      <div class="field">
+        <label for="ticketSelect">Entrada</label>
+        <select id="ticketSelect" onchange="onTicketChange()" disabled><option value="">Elige una función</option></select>
+      </div>
+    </div>
+
+    <!-- ═══════════════ MAPA DE ASIENTOS ═══════════════ -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Sala</div>
+        <div class="card-sub" id="mapSub">Haz clic en los asientos disponibles para marcarlos como objetivo</div>
+      </div>
+      <div class="map-body">
+        <div class="screen"></div>
+        <div class="screen-label">Pantalla</div>
+        <div class="legend">
+          <div class="leg"><span class="seat av"></span>Disponible</div>
+          <div class="leg"><span class="seat occ"></span>Ocupado</div>
+          <div class="leg"><span class="seat tgt"></span>Objetivo</div>
+          <div class="leg"><span class="seat tgt held"></span>Retenida por el job</div>
+          <div class="leg"><span class="seat tgt taken">✕</span>Objetivo perdido</div>
+          <div class="leg"><span class="seat wc">♿</span>Silla de ruedas</div>
+        </div>
+        <div id="mapContainer"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ JOBS ═══════════════ -->
+    <div class="card">
+      <div class="card-head">
+        <div class="card-title">Jobs</div>
+        <div class="card-sub" id="jobsSub"></div>
+        <button class="btn btn-light btn-sm" onclick="newJobEditor()">＋ Nuevo job</button>
+      </div>
+      <div id="jobsGrid"></div>
+    </div>
+
+    <!-- ═══════════════ DETALLES + CONSOLA ═══════════════ -->
+    <div class="bottom-grid">
+      <div class="card">
+        <div class="card-head orange">
+          <div class="card-title">Detalles del job</div>
+          <div class="card-sub" id="jobSub">Selecciona un job en el panel</div>
+        </div>
+        <table class="job-table"><tbody id="jobTable"></tbody></table>
+      </div>
+      <div class="card console-card">
+        <div class="card-head">
+          <div class="card-title">Consola</div>
+          <div class="card-sub">todos los jobs</div>
+        </div>
+        <div class="console" id="logBox"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ HISTÓRICO ═══════════════ -->
+    <div class="card hist-card" id="histCard">
+      <div class="card-head">
+        <div class="card-title">Histórico de intentos</div>
+        <select class="head-select" id="histFilter" onchange="renderHistory()"><option value="">Todos los jobs</option></select>
+        <div class="card-sub" id="histSub"></div>
+        <button class="btn btn-light btn-sm" onclick="clearHistory()">Limpiar</button>
+        <button class="btn btn-light btn-sm" id="histExpandBtn" title="Pantalla completa" onclick="toggleHistoryExpand()">⛶</button>
+      </div>
+      <div class="hist-wrap">
+        <table class="hist-table">
+          <thead><tr><th>Hora</th><th>Job</th><th>Origen</th><th>Resultado</th><th>Detalle</th><th>Retención</th><th>Siguiente intento</th></tr></thead>
+          <tbody id="histRows"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+// ── Estado ────────────────────────────────────────────────────────────────────
+const state = {
+  role:         null,
+  cinemas:      [],
+  cinemaId:     null,
+  cinemaName:   '',
+  day:          null,   // YYYY-MM-DD (hora de Lima)
+  movies:       [],
+  movieId:      null,
+  movieText:    'Elige un cine',
+  sessionId:    null,
+  sel:          {},     // movieTitle, posterUrl, showtime, screenName, ticketDesc de lo elegido
+  tickets:      [],
+  ticketCode:   '0050',
+  targetSeats:  [],
+  seatPlan:     null,
+  jobs:         [],
+  editingJobId: null,   // job seleccionado en el panel (se edita en la barra lateral)
+  openGroups:   new Set(),   // grupos del histórico desplegados
+  loadSeq:      0,
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+async function ap(url, opts = {}) {
+  const r = await fetch(url, opts);
+  if (r.status === 401) { location.href = '/login'; throw new Error('Sesión expirada'); }
+  return r.json();
+}
+const postJ = (url, body = {}) => ap(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+function setOptions(sel, options, placeholder) {
+  const el = $(sel);
+  el.innerHTML = '';
+  if (placeholder) el.add(new Option(placeholder, ''));
+  for (const [value, text] of options) el.add(new Option(text, value));
+  el.disabled = !options.length;
+}
+
+function mapEmpty(icon, msg) {
+  $('mapContainer').innerHTML = `<div class="empty-state"><div class="empty-icon">${icon}</div><div>${esc(msg)}</div></div>`;
+}
+
+const fmtTime  = iso => new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+const fmtClock = iso => new Date(iso).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const fmtDay   = iso => new Date(iso).toLocaleDateString('es-PE', { weekday: 'short', day: '2-digit', month: 'short' });
+const editingJob = () => state.jobs.find(j => j.id === state.editingJobId) || null;
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  initDaySelect();
+  renderMovieDD();
+  resetFrom('movie');
+  updateEndHint();
+  renderEditor();
+  loadCinemas();
+  setInterval(pollStatus, 2500);
+  pollStatus();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('.mdd')) closeMovieDD();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeMovieDD(); if ($('histCard').classList.contains('expanded')) toggleHistoryExpand(); }
+});
+
+// ── Filtros: cine ─────────────────────────────────────────────────────────────
+async function loadCinemas() {
+  try {
+    const data = await ap('/bot/cinemas');
+    state.cinemas = data.cinemas || [];
+    setOptions('cinemaSelect', state.cinemas.map(c => [c.id, c.name]), '— Elige tu cine —');
+  } catch (e) {
+    setOptions('cinemaSelect', [], 'Error cargando cines');
+  }
+}
+
+async function onCinemaChange() {
+  const sel = $('cinemaSelect');
+  state.cinemaId   = sel.value || null;
+  state.cinemaName = state.cinemaId ? sel.selectedOptions[0].text : '';
+  state.movies     = [];
+  resetFrom('movie');
+  if (!state.cinemaId) return;
+
+  state.movieText = 'Cargando películas...';
+  renderMovieDD();
+  try {
+    const data = await ap(`/bot/movies?cinemaId=${state.cinemaId}`);
+    if (data.error) throw new Error(data.error);
+    state.movies = data.movies || [];
+  } catch (e) {
+    state.movieText = 'Error: ' + e.message;
+  }
+  renderMovieDD();
+}
+
+// ── Filtros: día (hoy .. hoy+3, hora de Lima) ─────────────────────────────────
+function initDaySelect() {
+  const sel = $('daySelect');
+  for (let i = 0; i <= 3; i++) {
+    const d   = new Date(Date.now() + i * 86400000);
+    const iso = d.toLocaleDateString('en-CA', { timeZone: 'America/Lima' });
+    const short = d.toLocaleDateString('es-PE', { timeZone: 'America/Lima', day: '2-digit', month: 'short' });
+    const txt = i === 0 ? `Hoy (${short})` : i === 1 ? `Mañana (${short})`
+              : d.toLocaleDateString('es-PE', { timeZone: 'America/Lima', weekday: 'long', day: '2-digit', month: 'short' });
+    sel.add(new Option(txt, iso));
+  }
+  state.day = sel.value;
+}
+
+function onDayChange() {
+  state.day = $('daySelect').value;
+  resetFrom('movie');
+  renderMovieDD();
+}
+
+// Películas con sus funciones restringidas al día elegido
+function dayMovies() {
+  return state.movies
+    .map(m => ({ ...m, sessions: m.sessions.filter(s => String(s.date).slice(0, 10) === state.day) }))
+    .filter(m => m.sessions.length > 0);
+}
+
+// ── Filtros: película (desplegable con póster) ────────────────────────────────
+function renderMovieDD() {
+  const movies = dayMovies();
+  const cur    = movies.find(m => m.id === state.movieId);
+  const btn    = $('movieBtn');
+  let text = state.movieText;
+  if (state.cinemaId && state.movies.length) text = movies.length ? `— ${movies.length} películas —` : 'Sin funciones este día';
+  btn.disabled  = !movies.length;
+  btn.innerHTML = cur
+    ? `<img src="${esc(cur.posterUrl)}" alt="" onerror="this.remove()"><span class="t">${esc(cur.title)}</span><span class="caret">▾</span>`
+    : `<span class="t" style="color:var(--muted)">${esc(text)}</span><span class="caret">▾</span>`;
+  $('movieList').innerHTML = movies.map(m => `
+    <div class="mdd-item ${m.id === state.movieId ? 'sel' : ''}" data-id="${esc(m.id)}">
+      <img src="${esc(m.posterUrl)}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+      <div>
+        <div class="t">${esc(m.title)}</div>
+        <div class="s">${m.rating ? `<span class="rating">${esc(m.rating)}</span> · ` : ''}${m.runtime ? `${esc(m.runtime)} min · ` : ''}${m.sessions.length} función${m.sessions.length !== 1 ? 'es' : ''}</div>
+      </div>
+    </div>`).join('');
+  for (const item of $('movieList').querySelectorAll('.mdd-item')) item.onclick = () => { pickMovie(item.dataset.id); closeMovieDD(); };
+}
+
+function toggleMovieDD() {
+  const open = $('movieList').classList.toggle('open');
+  $('movieBtn').classList.toggle('open', open);
+}
+function closeMovieDD() { $('movieList').classList.remove('open'); $('movieBtn').classList.remove('open'); }
+
+function pickMovie(id) {
+  state.movieId = id;
+  resetFrom('session');
+  renderMovieDD();
+  const movie = dayMovies().find(m => m.id === id);
+  if (!movie) return;
+  state.sel = { movieTitle: movie.title, posterUrl: movie.posterUrl };
+  const sessions = [...movie.sessions].sort((a, b) => a.showtime.localeCompare(b.showtime));
+  setOptions('sessionSelect',
+    sessions.map(s => [s.sessionId, [fmtTime(s.showtime), s.screenName, (s.languages || []).join('/')].filter(Boolean).join(' · ')]),
+    `— ${sessions.length} funciones —`);
+  updateSummary();
+}
+
+// ── Filtros: función / entrada ────────────────────────────────────────────────
+function onSessionChange() {
+  state.sessionId = $('sessionSelect').value || null;
+  resetFrom('ticket');
+  const s = dayMovies().find(m => m.id === state.movieId)?.sessions.find(x => x.sessionId === state.sessionId);
+  if (s) {
+    Object.assign(state.sel, { showtime: s.showtime, screenName: s.screenName });
+    setDefaultEnd();
+  }
+  if (state.sessionId) loadSession();
+}
+
+// Carga entradas y mapa de la función elegida. keepSeats/ticketCode al abrir un job existente.
+async function loadSession(keepSeats = [], ticketCode = null) {
+  const seq = ++state.loadSeq;
+  setOptions('ticketSelect', [], 'Cargando...');
+  $('mapContainer').innerHTML = '<div class="spinner-wrap"><div class="spin"></div>Cargando sala...</div>';
+
+  const [tickets, plan] = await Promise.all([
+    ap(`/bot/tickets?cinemaId=${state.cinemaId}&sessionId=${state.sessionId}`).catch(e => ({ error: e.message })),
+    ap(`/bot/seatplan?cinemaId=${state.cinemaId}&sessionId=${state.sessionId}`).catch(e => ({ error: e.message })),
+  ]);
+  if (seq !== state.loadSeq) return;   // se eligió otra cosa mientras cargaba
+
+  fillTickets(tickets, ticketCode);
+  state.targetSeats = keepSeats.map(s => ({ ...s }));
+  state.seatPlan = plan;
+  renderSeatMap(plan);
+  renderTargetChips();
+  updateSummary();
+}
+
+// Por defecto la entrada "General 2D"; si no existe, cualquier "General", si no la primera
+function fillTickets(data, prefer = null) {
+  if (!Array.isArray(data) || !data.length) {
+    state.tickets = [];
+    setOptions('ticketSelect', [], data?.error ? 'Error: ' + data.error : 'Sin entradas');
+    return;
+  }
+  state.tickets = data;
+  const def = (prefer && data.find(t => t.TicketTypeCode === prefer))
+           || data.find(t => /general\s*2d/i.test(t.Description))
+           || data.find(t => /^general/i.test(t.Description))
+           || data[0];
+  setOptions('ticketSelect', data.map(t => [t.TicketTypeCode, `${t.Description} · S/${(t.PriceInCents / 100).toFixed(2)}`]));
+  $('ticketSelect').value = def.TicketTypeCode;
+  state.ticketCode = def.TicketTypeCode;
+  state.sel.ticketDesc = def.Description;
+}
+
+function onTicketChange() {
+  state.ticketCode = $('ticketSelect').value;
+  state.sel.ticketDesc = state.tickets.find(t => t.TicketTypeCode === state.ticketCode)?.Description || '';
+  updateSummary();
+}
+
+// Limpia la selección desde un nivel hacia abajo
+function resetFrom(level) {
+  const from = ['movie', 'session', 'ticket'].indexOf(level);
+  if (from <= 0) { state.movieId = null; state.sel = {}; }
+  if (from <= 1) { state.sessionId = null; setOptions('sessionSelect', [], 'Elige una película'); }
+  state.loadSeq++;
+  state.tickets = [];
+  setOptions('ticketSelect', [], 'Elige una función');
+  state.targetSeats = [];
+  state.seatPlan    = null;
+  mapEmpty('🎬', 'Elige cine, película y función para ver la sala');
+  $('mapSub').textContent = 'Haz clic en los asientos disponibles para marcarlos como objetivo';
+  renderTargetChips();
+  updateSummary();
+}
+
+function updateSummary() {
+  const s = state.sel;
+  $('sumCinema').textContent  = state.cinemaName || '—';
+  $('sumMovie').textContent   = s.movieTitle || '—';
+  $('sumSession').textContent = s.showtime ? `${fmtDay(s.showtime)} ${fmtTime(s.showtime)}` : '—';
+  $('sumTicket').textContent  = state.sessionId ? (s.ticketDesc || state.ticketCode) : '—';
+  for (const id of ['sumCinema', 'sumMovie', 'sumSession', 'sumTicket']) $(id).title = $(id).textContent;
+}
+
+// ── Mapa de asientos ──────────────────────────────────────────────────────────
+function renderSeatMap(data) {
+  if (data?.error || !data?.SeatLayoutData) { mapEmpty('⚠️', data?.error || 'Sin datos de sala'); return; }
+  const area = data.SeatLayoutData.Areas?.[0];
+  if (!area) { mapEmpty('⚠️', 'Sin áreas'); return; }
+
+  const rows = area.Rows || [];
+  const wrap = document.createElement('div');
+  wrap.className = 'seat-map';
+
+  // Vista desde la pantalla, igual que la web: el cine envía la sala vista desde atrás
+  // (fila 0 = última fila, columna 0 = extremo derecho), así que se invierten filas y columnas.
+  // Ancho común a todas las filas para que los bloques y pasillos queden alineados.
+  const allCols = rows.flatMap(r => (r.Seats || []).map(s => s.Position?.ColumnIndex ?? 0));
+  const maxC    = Math.max(area.ColumnCount ? area.ColumnCount - 1 : 0, ...allCols, 0);
+  let free = 0;
+  // Estado de los objetivos según el job abierto (retenida por el job / tomada por otro)
+  const job      = editingJob();
+  const jobState = job && job.sessionId === state.sessionId ? (job.seatState || {}) : {};
+  const STATE_TITLE = { held: 'retenida por el job', taken: 'perdida: la tomó otra persona' };
+
+  for (let ri = rows.length - 1; ri >= 0; ri--) {
+    const row   = rows[ri];
+    const seats = row.Seats || [];
+    if (!seats.length) continue;   // filas vacías de relleno
+
+    const rowEl = document.createElement('div');
+    rowEl.className = 'seat-row';
+    rowEl.insertAdjacentHTML('beforeend', `<div class="row-lbl">${esc(row.PhysicalName)}</div>`);
+
+    for (let ci = maxC; ci >= 0; ci--) {
+      const seat = seats.find(s => s.Position?.ColumnIndex === ci);
+      const el   = document.createElement('div');
+      el.className = 'seat';
+      const label = seat ? `${row.PhysicalName}${seat.Id || ci}` : '';
+      const tgt   = state.targetSeats.find(t => t.rowIndex === ri && t.columnIndex === ci);
+      const isTgt = !!tgt;
+      const tgtState = tgt ? jobState[tgt.label] : null;
+
+      if (!seat || seat.Status === 7) {   // 7 = butaca bloqueada, la web no la muestra
+        el.classList.add('empty');
+      } else if (seat.Status === 3 || seat.SeatStyle === 3) {
+        el.classList.add('wc');
+        el.textContent = '♿';
+        el.title = 'Silla de ruedas';
+      } else if (seat.Status !== 0 && !isTgt) {
+        el.classList.add('occ');
+        el.title = `${label}: ocupado`;
+      } else {
+        // Libre, o un objetivo del job (se muestra aunque ahora esté ocupado, p. ej. por la propia reserva)
+        if (seat.Status === 0) free++;
+        el.classList.add(isTgt ? 'tgt' : 'av');
+        if (tgtState === 'held' || tgtState === 'taken') el.classList.add(tgtState);
+        if (tgtState === 'taken') el.textContent = '✕';
+        el.id    = `s-${ri}-${ci}`;
+        el.title = `${label}${tgtState in STATE_TITLE ? ` (${STATE_TITLE[tgtState]})` : seat.Status !== 0 ? ' (ocupado ahora)' : ''}: clic para ${isTgt ? 'quitar' : 'marcar como objetivo'}`;
+        el.onclick = () => toggleSeat(ri, ci, area.AreaNumber || 1, label, el);
+      }
+      rowEl.appendChild(el);
+    }
+
+    rowEl.insertAdjacentHTML('beforeend', `<div class="row-lbl">${esc(row.PhysicalName)}</div>`);
+    wrap.appendChild(rowEl);
+  }
+
+  $('mapContainer').innerHTML = '';
+  $('mapContainer').appendChild(wrap);
+  $('mapSub').textContent = `${free} asientos disponibles · clic para marcar como objetivo`;
+}
+
+function toggleSeat(rowIndex, colIndex, areaNumber, label) {
+  const idx = state.targetSeats.findIndex(t => t.rowIndex === rowIndex && t.columnIndex === colIndex);
+  if (idx >= 0) state.targetSeats.splice(idx, 1);
+  else          state.targetSeats.push({ rowIndex, columnIndex: colIndex, areaNumber, label });
+  renderSeatMap(state.seatPlan);
+  renderTargetChips();
+}
+
+function removeSeat(i) {
+  state.targetSeats.splice(i, 1);
+  if (state.seatPlan) renderSeatMap(state.seatPlan);
+  renderTargetChips();
+}
+
+function renderTargetChips() {
+  $('targetChips').innerHTML = state.targetSeats.length
+    ? state.targetSeats.map((s, i) => `<div class="chip" onclick="removeSeat(${i})">${esc(s.label)}<span class="x">×</span></div>`).join('')
+    : '<span class="hint">Haz clic en los asientos del mapa</span>';
+}
+
+// ── Editor de job (barra lateral) ─────────────────────────────────────────────
+const END_AFTER_SHOWTIME_MS = 20 * 60 * 1000;
+
+// Fecha → valor de <input type="datetime-local"> en hora local ("YYYY-MM-DDTHH:MM")
+function toLocalInput(date) {
+  const d = new Date(date);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+}
+
+function endAtFromInput() {
+  const v = $('endTime').value;
+  return v ? new Date(v).toISOString() : null;   // sin zona → se interpreta como hora local
+}
+
+// Fin por defecto: inicio de la función elegida + 20 min
+function setDefaultEnd() {
+  $('endTime').value = state.sel.showtime ? toLocalInput(new Date(state.sel.showtime).getTime() + END_AFTER_SHOWTIME_MS) : '';
+  updateEndHint();
+}
+
+function updateEndHint() {
+  const iso = endAtFromInput();
+  if (!iso) { $('endHint').textContent = 'Sin fin: corre hasta que lo detengas'; $('endHint').style.color = ''; return; }
+  const past = new Date(iso) <= new Date();
+  $('endHint').textContent = past
+    ? `Esa fecha ya pasó (${fmtDay(iso)} ${fmtTime(iso)}): el job no podrá iniciarse`
+    : `Se detiene el ${fmtDay(iso)} a las ${fmtTime(iso)}`;
+  $('endHint').style.color = past ? 'var(--pink)' : '';
+}
+
+function editorConfig() {
+  const s = state.sel;
+  let rmin = parseInt($('retryMin').value) || 10, rmax = parseInt($('retryMax').value) || 20;
+  if (rmin > rmax) [rmin, rmax] = [rmax, rmin];
+  const defName = s.movieTitle ? `${s.movieTitle}${s.showtime ? ' ' + fmtTime(s.showtime) : ''}` : '';
+  return {
+    name:        $('jobName').value.trim() || defName,
+    cinemaId:    state.cinemaId,
+    cinemaName:  state.cinemaName,
+    movieId:     state.movieId,
+    movieTitle:  s.movieTitle || '',
+    posterUrl:   s.posterUrl || '',
+    sessionId:   state.sessionId,
+    showtime:    s.showtime || null,
+    screenName:  s.screenName || '',
+    day:         state.day,
+    ticketCode:  state.ticketCode,
+    ticketDesc:  s.ticketDesc || '',
+    targetSeats: state.targetSeats,
+    intervalMs:  (parseInt($('intervalSec').value) || 600) * 1000,
+    retryMinMs:  rmin * 1000,
+    retryMaxMs:  rmax * 1000,
+    adaptive:    $('adaptive').checked,
+    endAt:       endAtFromInput(),
+  };
+}
+
+function validate() {
+  if (!state.cinemaId)           { showResult({ error: 'Selecciona un cine' }, 'err'); return false; }
+  if (!state.sessionId)          { showResult({ error: 'Selecciona una función' }, 'err'); return false; }
+  if (!state.targetSeats.length) { showResult({ error: 'Selecciona al menos un asiento' }, 'err'); return false; }
+  return true;
+}
+
+// Botones según si es un job nuevo o uno existente (y si está corriendo)
+function renderEditor() {
+  const job = editingJob();
+  $('editorHead').innerHTML = job ? `Editando <span class="editing">${esc(job.name)}</span>` : 'Nuevo job';
+  const html = job ? `
+      <button class="btn btn-purple btn-block" onclick="saveJob()">💾 Guardar cambios</button>
+      ${job.running
+        ? '<button class="btn btn-pink btn-block" onclick="stopJob()">⏹ Detener job</button>'
+        : '<button class="btn btn-green btn-block" onclick="startJob()">▶ Guardar e iniciar</button>'}
+      <button class="btn btn-outline-orange btn-block" onclick="reserveOnce()">⚡ Reservar ahora (1 vez)</button>
+      <button class="btn btn-ghost-dark btn-block" onclick="runTest()">🧪 Test: verificar disponibilidad</button>
+      <button class="btn btn-ghost-dark btn-block" onclick="newJobEditor()">＋ Crear otro job</button>`
+    : `
+      <button class="btn btn-green btn-block" onclick="createJob(true)">▶ Crear e iniciar job</button>
+      <button class="btn btn-purple btn-block" onclick="createJob(false)">➕ Crear job (sin iniciar)</button>
+      <button class="btn btn-ghost-dark btn-block" onclick="runTest()">🧪 Test: verificar disponibilidad</button>`;
+  // Evitar re-pintar si no cambió (no perder el foco/hover en cada sondeo)
+  if ($('editorBtns').dataset.html !== html) { $('editorBtns').innerHTML = html; $('editorBtns').dataset.html = html; }
+}
+
+function newJobEditor() {
+  state.editingJobId = null;
+  $('jobName').value = '';
+  state.targetSeats = [];
+  if (state.seatPlan) renderSeatMap(state.seatPlan);
+  renderTargetChips();
+  $('resultBox').innerHTML = '';
+  renderEditor(); renderJobs(); renderJob();
+}
+
+async function createJob(start) {
+  if (!validate()) return;
+  const r = await postJ('/bot/jobs', { ...editorConfig(), start }).catch(e => ({ error: e.message }));
+  if (r.error) return showResult(r, 'err');
+  state.jobs.push(r.job);
+  state.editingJobId = r.job.id;
+  $('jobName').value = r.job.name;
+  if (r.started && !r.started.ok) showResult({ error: r.started.error }, 'err');
+  else showResult({ msg: start ? 'Job creado e iniciado' : 'Job creado' }, 'dry');
+  renderEditor();
+  pollStatus();
+}
+
+async function saveJob(silent = false) {
+  const job = editingJob();
+  if (!job || !validate()) return false;
+  const r = await postJ(`/bot/jobs/${job.id}`, editorConfig()).catch(e => ({ error: e.message }));
+  if (r.error) { showResult(r, 'err'); return false; }
+  Object.assign(job, r.job);
+  $('jobName').value = r.job.name;
+  if (!silent) showResult({ msg: 'Cambios guardados' }, 'dry');
+  pollStatus();
+  return true;
+}
+
+async function startJob(id = state.editingJobId) {
+  if (id === state.editingJobId && !(await saveJob(true))) return;
+  const r = await postJ(`/bot/jobs/${id}/start`).catch(e => ({ error: e.message }));
+  if (r.error) showResult(r, 'err');
+  pollStatus();
+}
+
+async function stopJob(id = state.editingJobId) {
+  await postJ(`/bot/jobs/${id}/stop`);
+  pollStatus();
+}
+
+async function deleteJob(id) {
+  const job = state.jobs.find(j => j.id === id);
+  if (!confirm(`¿Eliminar el job "${job?.name}"? Se detiene y se borra su histórico.`)) return;
+  await postJ(`/bot/jobs/${id}/delete`);
+  if (state.editingJobId === id) newJobEditor();
+  pollStatus();
+}
+
+async function reserveOnce() {
+  if (!(await saveJob(true))) return;
+  showResult({ msg: 'Reservando...' }, 'dry');
+  const res = await postJ(`/bot/jobs/${state.editingJobId}/reserve-once`).catch(e => ({ error: e.message }));
+  showResult(res, res.success ? 'ok' : 'err');
+  if (res.success && state.seatPlan) refreshSeatMap();
+  pollStatus();
+}
+
+async function runTest() {
+  if (!validate()) return;
+  showResult({ msg: 'Verificando...' }, 'dry');
+  const res = editingJob()
+    ? ((await saveJob(true)) ? await postJ(`/bot/jobs/${state.editingJobId}/test`).catch(e => ({ error: e.message })) : null)
+    : await postJ('/bot/test', editorConfig()).catch(e => ({ error: e.message }));
+  if (res) showResult(res, res.success ? 'dry' : 'err');
+  pollStatus();
+}
+
+async function refreshSeatMap() {
+  const data = await ap(`/bot/seatplan?cinemaId=${state.cinemaId}&sessionId=${state.sessionId}`).catch(() => null);
+  if (data) { state.seatPlan = data; renderSeatMap(data); }
+}
+
+function showResult(res, type = 'ok') {
+  const box = $('resultBox');
+  const lost = res.taken?.length ? `<br>⚠️ No disponibles: ${esc(res.taken.join(', '))} (se sigue con el resto)` : '';
+  if (res.holdActive) {
+    box.innerHTML = `<div class="result result-dry">⏳ ${esc(res.error)}</div>`;
+  } else if (type === 'ok') {
+    box.innerHTML = `<div class="result ${res.partial ? 'result-dry' : 'result-ok'}">✅ <strong>${res.partial ? 'Reserva parcial' : 'Reservado'}:</strong> ${esc(res.seats)} · S/${esc(res.total)}${lost}</div>`;
+  } else if (type === 'dry') {
+    box.innerHTML = `<div class="result result-dry">${esc(res.msg || '🧪 Asientos disponibles. El job puede reservarlos.')}${res.seats ? '<br>Asientos: ' + esc([].concat(res.seats).join(', ')) : ''}${lost}</div>`;
+  } else {
+    box.innerHTML = `<div class="result result-err">❌ ${esc(res.error || JSON.stringify(res))}</div>`;
+  }
+}
+
+// Abrir un job del panel: carga su configuración en filtros, mapa y barra lateral
+async function selectJob(id) {
+  if (state.editingJobId === id) return;
+  const job = state.jobs.find(j => j.id === id);
+  if (!job) return;
+  state.editingJobId = id;
+  $('resultBox').innerHTML = '';
+  $('jobName').value     = job.name;
+  $('intervalSec').value = job.intervalMs / 1000;
+  $('retryMin').value    = job.retryMinMs / 1000;
+  $('retryMax').value    = job.retryMaxMs / 1000;
+  $('adaptive').checked  = job.adaptive !== false;
+  $('endTime').value     = job.endAt ? toLocalInput(job.endAt) : '';
+  updateEndHint();
+  renderEditor(); renderJobs(); renderJob();
+
+  // Cine → películas
+  if (state.cinemaId !== job.cinemaId || !state.movies.length) {
+    $('cinemaSelect').value = job.cinemaId;
+    await onCinemaChange();
+    if (state.editingJobId !== id) return;
+  }
+  // Día → película → función (si todavía están en cartelera)
+  if ([...$('daySelect').options].some(o => o.value === job.day)) { $('daySelect').value = job.day; state.day = job.day; }
+  resetFrom('movie');
+  if (dayMovies().some(m => m.id === job.movieId)) {
+    pickMovie(job.movieId);
+    if ([...$('sessionSelect').options].some(o => o.value === job.sessionId)) $('sessionSelect').value = job.sessionId;
+  }
+  renderMovieDD();
+  state.movieId   = job.movieId;
+  state.sessionId = job.sessionId;
+  state.sel = { movieTitle: job.movieTitle, posterUrl: job.posterUrl, showtime: job.showtime, screenName: job.screenName, ticketDesc: job.ticketDesc };
+  await loadSession(job.targetSeats, job.ticketCode);
+}
+
+// ── Panel de jobs, detalles, consola, histórico ───────────────────────────────
+function jobBadge(j) {
+  if (j.busy && j.running) return '<span class="badge badge-green">Intentando…</span>';
+  if (!j.running) return '<span class="badge badge-gray">Detenido</span>';
+  if (j.mode === 'hold')  return '<span class="badge badge-cyan">En retención</span>';
+  return j.mode === 'retry' ? '<span class="badge badge-yellow">Reintentando</span>' : '<span class="badge badge-green">Corriendo</span>';
+}
+
+const fmtMin = ms => `${(ms / 60000).toFixed(1)} min`;
+
+// Butacas objetivo coloreadas: verde = retenida por el job, rojo tachado = la tomó otra persona
+function seatChips(j) {
+  const TITLE = { held: 'Retenida por el job', taken: 'No disponible: la tomó otra persona', free: 'Libre' };
+  return j.targetSeats.map(s => {
+    const st = j.seatState?.[s.label] || '';
+    return `<span class="schip ${st}" title="${TITLE[st] || 'Sin comprobar'}">${esc(s.label)}</span>`;
+  }).join('');
+}
+
+// Texto de la espera tras reservar: adaptativa (con la retención medida) o intervalo fijo
+const fmtMins = list => list.map(ms => (ms / 60000).toFixed(1)).join(' · ') + ' min';
+
+// Texto corto de la espera tras reservar: plan de revisiones (adaptativa) o intervalo fijo
+function waitText(j) {
+  const plan = j.nextPlanMs || [];
+  if (plan.length > 1 || (j.adaptive && (j.learnedHoldMs || j.holdHint))) return `revisa a los ${fmtMins(plan)}`;
+  return `revisa a los ${j.intervalMs / 1000} s${j.adaptive ? ' (hasta medir la retención)' : ''}`;
+}
+
+// Plan de la vuelta actual con lo ya revisado marcado; si no hay vuelta en curso, el próximo plan
+function planHtml(j) {
+  const c = j.cycle;
+  const range = `${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s`;
+  if (c?.plan && !c.measured && j.heldSeats?.length) {
+    const pts = c.plan.map((ms, i) => {
+      const t = `${(ms / 60000).toFixed(1)} min`;
+      return c.retrying || i < c.step - 1 ? `<span style="color:var(--muted)">✓ ${t}</span>`
+           : i === c.step - 1 ? `<b>▸ ${t}</b>` : t;
+    });
+    const tail = c.retrying ? `<b>▸ cada ${range}</b>` : `luego cada ${range}`;
+    return `${pts.join(' · ')} · ${tail} <span style="color:var(--muted)">(vuelta actual, desde la reserva de las ${fmtTime(c.reservedAt)})</span>`;
+  }
+  return `${fmtMins(j.nextPlanMs || [])} tras reservar · luego cada ${range} <span style="color:var(--muted)">(próxima vuelta)</span>`;
+}
+
+function nextText(j) {
+  if (!j.running) return '—';
+  if (!j.nextAt) return 'en curso…';
+  return `${fmtClock(j.nextAt)} (en ${Math.max(0, Math.round((j.nextAt - Date.now()) / 1000))} s)`;
+}
+
+function renderJobs() {
+  const running = state.jobs.filter(j => j.running).length;
+  $('jobsSub').textContent = state.jobs.length ? `${state.jobs.length} jobs · ${running} corriendo` : '';
+  if (!state.jobs.length) {
+    $('jobsGrid').innerHTML = '<div class="jobs-empty">Aún no hay jobs. Elige función y asientos, y pulsa “Crear e iniciar job”.</div>';
+    return;
+  }
+  $('jobsGrid').className = 'jobs-grid';
+  $('jobsGrid').innerHTML = state.jobs.map(j => `
+    <div class="job-card ${j.id === state.editingJobId ? 'sel' : ''}" onclick="selectJob('${j.id}')">
+      <img src="${esc(j.posterUrl)}" alt="" onerror="this.style.visibility='hidden'">
+      <div class="jc-body">
+        <div class="jc-top"><span class="jc-name" title="${esc(j.name)}">${esc(j.name)}</span>${jobBadge(j)}</div>
+        <div class="jc-line">${esc(j.cinemaName)} · ${j.showtime ? esc(`${fmtDay(j.showtime)} ${fmtTime(j.showtime)}`) : ''} · ${esc(j.screenName)}</div>
+        <div class="jc-line">${seatChips(j)} · ${esc(j.ticketDesc || j.ticketCode)}</div>
+        <div class="jc-line">Próximo: ${nextText(j)} · OK ${j.successes}/${j.attempts}</div>
+        <div class="jc-line" title="${esc(waitText(j))}">Retención: ${j.learnedHoldMs ? '~' + fmtMin(j.learnedHoldMs) : j.holdHint ? `&lt; ${fmtMin(j.holdHint)}` : 'sin medir'} · ${waitText(j)}</div>
+        <div class="jc-actions">
+          ${j.running
+            ? `<button class="btn btn-pink btn-sm" onclick="event.stopPropagation();stopJob('${j.id}')">⏹ Detener</button>`
+            : `<button class="btn btn-green btn-sm" onclick="event.stopPropagation();startJob('${j.id}')">▶ Iniciar</button>`}
+          <button class="btn btn-light btn-sm" onclick="event.stopPropagation();deleteJob('${j.id}')">🗑 Eliminar</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function renderJob() {
+  const j = editingJob();
+  if (!j) {
+    $('jobSub').textContent = 'Selecciona un job en el panel';
+    $('jobTable').innerHTML = '<tr><td colspan="2" class="hist-empty">Ningún job seleccionado</td></tr>';
+    return;
+  }
+  $('jobSub').textContent = j.name;
+  const lr = j.lastResult;
+  const last = !lr ? '—'
+    : `${kindBadge(lr.dryRun ? 'test' : lr.success ? (lr.partial ? 'partial' : 'reserved') : lr.holdActive ? 'hold' : 'failed')}
+       ${fmtTime(lr.timestamp)} · ${esc(lr.error || (lr.seats ? [].concat(lr.seats).join(', ') : ''))}${lr.taken?.length ? ` · <span style="color:var(--pink)">no disponibles: ${esc(lr.taken.join(', '))}</span>` : ''}`;
+  const taken   = j.targetSeats.filter(s => j.seatState?.[s.label] === 'taken').map(s => s.label);
+  const samples = (j.holdSamples || []).map(x => `${fmtMin(x.ms)} <span style="color:var(--muted)">(${(x.loMs / 60000).toFixed(1)}–${(x.hiMs / 60000).toFixed(1)})</span>`).join(', ');
+  const holdCell = [
+    j.learnedHoldMs ? `~${fmtMin(j.learnedHoldMs)} <span style="color:var(--muted)">· la menor de las mediciones</span><br>Mediciones: ${samples}` : 'sin medir todavía',
+    j.holdHint ? `<span style="color:var(--orange)">Estimación de un solo uso: &lt; ${fmtMin(j.holdHint)}</span> <span style="color:var(--muted)">(se liberó antes de la primera revisión; no cuenta como medición)</span>` : '',
+  ].filter(Boolean).join('<br>');
+  const rows = [
+    ['Estado',           jobBadge(j)],
+    ['Próximo intento',  nextText(j)],
+    ['Hora de fin',      j.endAt ? `${fmtDay(j.endAt)} ${fmtTime(j.endAt)}` : '—'],
+    ['Cine',             esc(j.cinemaName || j.cinemaId)],
+    ['Función',          esc(`${j.movieTitle} · ${j.showtime ? fmtDay(j.showtime) + ' ' + fmtTime(j.showtime) : ''} · ${j.screenName}`)],
+    ['Asientos',         (seatChips(j) || '—') + (taken.length
+      ? `<div style="color:var(--pink);font-size:.78rem;margin-top:4px">${esc(taken.join(', '))} no disponible${taken.length > 1 ? 's' : ''}: el job sigue con el resto y lo${taken.length > 1 ? 's' : ''} vuelve a incluir si se libera${taken.length > 1 ? 'n' : ''}</div>` : '')],
+    ['Entrada',          esc(`${j.ticketDesc || ''} (${j.ticketCode})`)],
+    ['Retención',        holdCell],
+    ['Revisiones',       planHtml(j)],
+    ['Si falla',         `reintento cada ${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s (aleatorio)`],
+    ['Intentos / OK',    `${j.attempts} / ${j.successes}`],
+    ['Último resultado', last],
+    ['userSessionId',    `<span class="mono">${esc(j.userSessionId)}</span>`],
+  ];
+  $('jobTable').innerHTML = rows.map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join('');
+}
+
+function renderLog(log) {
+  const box = $('logBox');
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 20;
+  box.innerHTML = [...log].reverse().map(e => {
+    const t = new Date(e.time).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `<div class="log-line ${esc(e.type)}"><span class="log-t">${t}</span>${e.jobName ? `<span class="log-job">[${esc(e.jobName)}]</span>` : ''}${esc(e.msg)}</div>`;
+  }).join('');
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+
+const SOURCE_LABEL = { auto: 'Automático', manual: 'Manual', test: 'Test' };
+
+function renderHistory() {
+  // Opciones del filtro
+  const f = $('histFilter');
+  const current = f.value;
+  const opts = [['', 'Todos los jobs'], ...state.jobs.map(j => [j.id, j.name])];
+  if (f.options.length !== opts.length || opts.some(([v, t], i) => f.options[i]?.value !== v || f.options[i]?.text !== t)) {
+    f.innerHTML = '';
+    for (const [v, t] of opts) f.add(new Option(t, v));
+    f.value = opts.some(([v]) => v === current) ? current : '';
+  }
+
+  const hist = state.jobs
+    .filter(j => !f.value || j.id === f.value)
+    .flatMap(j => j.history.map(h => ({ ...h, jobId: j.id, jobName: j.name,
+      kind: h.kind || (h.dryRun ? 'test' : h.success ? 'reserved' : 'failed') })))   // entradas antiguas sin kind
+    .sort((a, b) => b.time.localeCompare(a.time));
+  const ok      = hist.filter(h => h.success && !h.dryRun).length;
+  const partial = hist.filter(h => h.kind === 'partial').length;
+  const holds   = hist.filter(h => h.kind === 'hold').length;
+  const failed  = hist.filter(h => !h.success && h.kind !== 'hold').length;
+  $('histSub').textContent = hist.length
+    ? `${hist.length} intentos · ${ok} reservas OK${partial ? ` (${partial} parciales)` : ''} · ${holds} en retención · ${failed} fallidos` : '';
+  if (!hist.length) { $('histRows').innerHTML = '<tr><td colspan="7" class="hist-empty">Aún no hay intentos</td></tr>'; return; }
+
+  const nextCell = h => h.nextInMs ? `+${Math.round(h.nextInMs / 1000)} s · ${fmtClock(new Date(h.time).getTime() + h.nextInMs)}` : '—';
+  const row = (h, cls = '') => `<tr class="${cls}"><td>${fmtDay(h.time)} ${fmtClock(h.time)}</td><td>${esc(h.jobName)}</td><td>${SOURCE_LABEL[h.source] || esc(h.source)}</td>
+    <td>${kindBadge(h.kind)}</td><td>${esc(h.msg)}</td><td>${h.holdMs ? `liberada tras ~${fmtMin(h.holdMs)}${h.holdLoMs != null ? `<br><span style="color:var(--muted);font-size:.74rem">entre ${(h.holdLoMs / 60000).toFixed(1)} y ${(h.holdHiMs / 60000).toFixed(1)} min</span>` : ''}` : '—'}</td><td>${nextCell(h)}</td></tr>`;
+
+  const html = [];
+  for (const g of groupHistory(hist)) {
+    if (g.length === 1) { html.push(row(g[0])); continue; }
+    // Grupo: la más reciente arriba; se muestra el rango de horas y cuántas revisiones hubo
+    const newest = g[0], oldest = g[g.length - 1];
+    const id   = `${newest.jobId}|${oldest.time}`;
+    const open = state.openGroups.has(id);
+    const secs = Math.round((new Date(newest.time) - new Date(oldest.time)) / 1000);
+    const dur  = secs >= 60 ? `${(secs / 60).toFixed(1)} min` : `${secs} s`;
+    const detail = newest.kind === 'hold'
+      ? `${esc(newest.msg.replace(/^Retención activa: /, '').replace(/ \([\d.]+ min\)$/, ''))}`
+      : esc(newest.msg);
+    html.push(`<tr class="hist-group" data-group="${esc(id)}">
+      <td>${fmtDay(oldest.time)} ${fmtClock(oldest.time)} → ${fmtClock(newest.time)}</td><td>${esc(newest.jobName)}</td><td>${SOURCE_LABEL[newest.source] || esc(newest.source)}</td>
+      <td>${kindBadge(newest.kind)} <span class="hist-count">×${g.length}</span></td>
+      <td>${detail}<span class="hist-toggle">${open ? '▾ ocultar' : `▸ ${g.length} revisiones en ${dur}`}</span></td>
+      <td>—</td><td>${nextCell(newest)}</td></tr>`);
+    if (open) for (const h of g) html.push(row(h, 'hist-sub'));
+  }
+  $('histRows').innerHTML = html.join('');
+  for (const tr of $('histRows').querySelectorAll('.hist-group')) {
+    tr.onclick = () => {
+      const id = tr.dataset.group;
+      state.openGroups.has(id) ? state.openGroups.delete(id) : state.openGroups.add(id);
+      renderHistory();
+    };
+  }
+}
+
+// Junta intentos consecutivos del mismo job con el mismo resultado repetitivo (en retención, o el
+// mismo fallo) para que no llenen la tabla. Recibe el histórico ordenado del más nuevo al más viejo.
+function groupHistory(hist) {
+  const key = h => (h.kind === 'hold' || h.kind === 'failed')
+    ? `${h.jobId}|${h.kind}|${h.msg.replace(/ \([\d.]+ min\)$/, '')}` : null;
+  const groups = [];
+  for (const h of hist) {
+    const k = key(h);
+    const last = groups[groups.length - 1];
+    if (k && last && key(last[0]) === k) last.push(h);
+    else groups.push([h]);
+  }
+  return groups;
+}
+
+function kindBadge(kind) {
+  const B = {
+    reserved: ['badge-green',  'Reservado'],
+    partial:  ['badge-orange', 'Parcial'],
+    hold:     ['badge-cyan',   'En retención'],
+    failed:   ['badge-pink',   'Fallido'],
+    test:     ['badge-yellow', 'Test OK'],
+  };
+  const [cls, txt] = B[kind] || B.failed;
+  return `<span class="badge ${cls}">${txt}</span>`;
+}
+
+function toggleHistoryExpand() {
+  const on = $('histCard').classList.toggle('expanded');
+  $('histExpandBtn').textContent = on ? '✕' : '⛶';
+  $('histExpandBtn').title = on ? 'Volver al tamaño normal' : 'Pantalla completa';
+}
+
+async function clearHistory() {
+  const jobId = $('histFilter').value;
+  const job = state.jobs.find(j => j.id === jobId);
+  if (!confirm(job ? `¿Borrar el histórico de "${job.name}"?` : '¿Borrar el histórico de todos los jobs?')) return;
+  await postJ('/bot/history/clear', { jobId: jobId || null });
+  pollStatus();
+}
+
+async function pollStatus() {
+  try {
+    const s = await ap('/bot/status');
+    state.role = s.role;
+    state.jobs = s.jobs || [];
+    if (state.editingJobId && !editingJob()) state.editingJobId = null;
+
+    $('sessIndicator').classList.toggle('ok', !!s.sessionReady);
+    $('sessLabel').textContent = s.sessionReady ? `Cine · ${s.cookieCount} cookies` : 'Sin sesión con el cine';
+    $('roleBadge').textContent = s.role === 'admin' ? 'Admin' : 'Usuario';
+    $('tabPasswordsBtn').style.display = s.role === 'admin' ? '' : 'none';
+
+    renderEditor();
+    renderJobs();
+    renderJob();
+    renderLog(s.log || []);
+    renderHistory();
+
+    // Si cambió el estado de las butacas del job abierto (retenida / perdida), refrescar el mapa
+    const j   = editingJob();
+    const sig = j && j.sessionId === state.sessionId ? JSON.stringify(j.seatState || {}) : '';
+    if (sig !== state.seatSig) {
+      state.seatSig = sig;
+      if (sig && state.seatPlan) refreshSeatMap();
+    }
+  } catch (e) {
+    $('sessIndicator').classList.remove('ok');
+    $('sessLabel').textContent = 'Servidor desconectado';
+  }
+}
+
+// ── Configuración: cookies / tokens ───────────────────────────────────────────
+function toggleConfig() {
+  const open = $('configPanel').classList.toggle('open');
+  if (open) { loadCookies(); if (state.role === 'admin') loadPasswords(); }
+}
+
+function showTab(id) {
+  for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === id);
+  $('tabCookies').style.display   = id === 'tabCookies' ? '' : 'none';
+  $('tabPasswords').style.display = id === 'tabPasswords' ? '' : 'none';
+  if (id === 'tabPasswords') loadPasswords();
+}
+
+function configMsg(msg, ok = true, el = 'configMsg') {
+  $(el).textContent = msg;
+  $(el).style.color = ok ? 'var(--green)' : 'var(--pink)';
+}
+
+async function loadCookies() {
+  try {
+    const data = await ap('/bot/session');
+    $('cookieRows').innerHTML = '';
+    for (const [k, v] of Object.entries(data.cookies || {})) addCookieRow(k, v);
+    if (!Object.keys(data.cookies || {}).length) addCookieRow('', '');
+    configMsg('');
+  } catch (e) { configMsg('No se pudo leer la sesión: ' + e.message, false); }
+}
+
+function addCookieRow(name, value) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input class="cfg-input ck-name" value="${esc(name)}" placeholder="nombre" spellcheck="false"></td>
+    <td><input class="cfg-input ck-value" value="${esc(value)}" placeholder="valor" spellcheck="false"></td>
+    <td><button class="icon-btn" title="Quitar" onclick="this.closest('tr').remove()">×</button></td>`;
+  $('cookieRows').appendChild(tr);
+}
+
+function readCookieRows() {
+  const out = {};
+  for (const tr of $('cookieRows').querySelectorAll('tr')) {
+    const k = tr.querySelector('.ck-name').value.trim();
+    if (k) out[k] = tr.querySelector('.ck-value').value.trim();
+  }
+  return out;
+}
+
+async function saveCookies() {
+  const res = await postJ('/bot/session', { cookies: readCookieRows() }).catch(e => ({ error: e.message }));
+  if (res.error) return configMsg(res.error, false);
+  configMsg(`Guardado. La navegación y los jobs usan ahora ${Object.keys(res.cookies).length} cookies.`);
+  pollStatus();
+}
+
+async function renewSession() {
+  configMsg('Renovando sesión...');
+  await postJ('/bot/reset-session').catch(() => {});
+  await loadCookies();
+  configMsg('Sesión renovada desde el cine.');
+  pollStatus();
+}
+
+function importHeader() {
+  const txt = $('cookieHeader').value.replace(/^cookie:\s*/i, '');
+  const current = readCookieRows();
+  let n = 0;
+  for (const part of txt.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 1) continue;
+    current[part.slice(0, eq).trim()] = part.slice(eq + 1).trim();
+    n++;
+  }
+  $('cookieRows').innerHTML = '';
+  for (const [k, v] of Object.entries(current)) addCookieRow(k, v);
+  configMsg(n ? `${n} cookies cargadas en la tabla. Pulsa Guardar para aplicarlas.` : 'No se encontraron cookies en el texto.', n > 0);
+}
+
+async function copyHeader() {
+  const header = Object.entries(readCookieRows()).map(([k, v]) => `${k}=${v}`).join('; ');
+  try { await navigator.clipboard.writeText(header); configMsg('Cabecera copiada.'); }
+  catch { $('cookieHeader').value = header; configMsg('Cabecera puesta en el cuadro de texto.'); }
+}
+
+// ── Configuración: contraseñas (solo admin) ───────────────────────────────────
+function renderPasswords(list) {
+  $('pwRows').innerHTML = list.length ? list.map(p => `
+    <tr>
+      <td class="mono">${esc(p.password)}</td>
+      <td>${esc(p.label) || '<span style="color:var(--muted)">—</span>'}</td>
+      <td>${p.source === 'env' ? '<span class="badge badge-gray">.env</span>' : '<span class="badge badge-green">Panel</span>'}</td>
+      <td>${p.createdAt ? `${fmtDay(p.createdAt)} ${fmtTime(p.createdAt)}` : '—'}</td>
+      <td><button class="icon-btn" title="Eliminar" data-pw="${esc(p.password)}">×</button></td>
+    </tr>`).join('') : '<tr><td colspan="5" class="hist-empty">No hay contraseñas de usuario. Solo entra el admin.</td></tr>';
+  for (const b of $('pwRows').querySelectorAll('[data-pw]')) b.onclick = () => deletePassword(b.dataset.pw);
+}
+
+async function loadPasswords() {
+  const r = await ap('/admin/passwords').catch(e => ({ error: e.message }));
+  if (r.error) return configMsg(r.error, false, 'pwMsg');
+  renderPasswords(r.passwords);
+}
+
+async function createPassword() {
+  const r = await postJ('/admin/passwords', { label: $('pwLabel').value, password: $('pwNew').value }).catch(e => ({ error: e.message }));
+  if (r.error) return configMsg(r.error, false, 'pwMsg');
+  $('pwLabel').value = ''; $('pwNew').value = '';
+  renderPasswords(r.passwords);
+  configMsg(`Contraseña creada: ${r.password}`, true, 'pwMsg');
+}
+
+async function deletePassword(pw) {
+  if (!confirm(`¿Eliminar la contraseña "${pw}"? Quien la use perderá el acceso.`)) return;
+  const r = await postJ('/admin/passwords/delete', { password: pw }).catch(e => ({ error: e.message }));
+  if (r.error) return configMsg(r.error, false, 'pwMsg');
+  renderPasswords(r.passwords);
+  configMsg('Contraseña eliminada.', true, 'pwMsg');
+}
+
+async function logout() {
+  await fetch('/auth/logout', { method: 'POST' }).catch(() => {});
+  location.href = '/login';
+}
+</script>
+</body>
+</html>
