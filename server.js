@@ -308,6 +308,17 @@ async function getPoster(id) {
 
 // ─── INICIALIZACIÓN DE SESIÓN ─────────────────────────────────────────────────
 
+async function getCinemas() {
+  const data = await cpGet('/api/v1-web/cache/cinemascache');
+  const cinemas = Array.isArray(data) ? data : (data.cinemas || data);
+  return cinemas.map(c => ({
+    id:   c.ID   || c.id || c.cinemaId || c.Id,
+    name: c.name || c.Name || c.description || c.Description,
+    slug: c.formattedCinemaName || c.slug || c.Slug || '',
+  })).filter(c => c.id && c.name)
+     .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 async function initSession(force = false) {
   if (sessionReady && !force) return true;
   try {
@@ -364,7 +375,7 @@ const CONFIG_KEYS = ['name', 'cinemaId', 'cinemaName', 'movieId', 'movieTitle', 
 // Estado persistido además de la configuración
 const STATE_KEYS = ['id', 'createdAt', 'userSessionId', 'running', 'attempts', 'successes', 'lastResult', 'history',
   'heldSeats', 'lastReservedAt', 'cycle', 'holdSamples', 'holdHint', 'seatState',
-  'uidReservations', 'orderExpiryInfo', 'expiryChecked'];
+  'uidReservations', 'orderExpiryInfo', 'expiryChecked', 'paused', 'alert', 'watcherId'];
 
 const HOLD_MAX_MS     = 60 * 60 * 1000;  // pasado esto, butacas ocupadas ya no se asumen como retención propia
 const HOLD_SAMPLES    = 5;               // mediciones de retención que se recuerdan por job
@@ -391,6 +402,9 @@ function newJob(cfg = {}) {
     holdSamples:    [],     // mediciones reales de la retención: { ms, loMs, hiMs, at, newOrder, orderSeq }
     holdHint:       null,   // estimación de un solo uso (ms): la retención duró menos de esto
     uidReservations: 0,     // reservas hechas con el userSessionId actual (0 → la próxima abre una orden nueva)
+    paused:         false,  // en pausa: sigue revisando pero no reserva; avisa cuando las butacas están libres
+    alert:          null,   // aviso vigente: { seats, taken, at, lastSeenAt, ack }
+    watcherId:      null,   // vigía de preestreno que creó el job
     orderExpiryInfo: null,  // campos de vencimiento encontrados en la última respuesta de reserva
     expiryChecked:  false,  // ya se registró en consola si la respuesta trae vencimiento
     seatState:      {},     // etiqueta → 'held' | 'free' | 'taken' en la última comprobación
@@ -585,7 +599,7 @@ function randomRetry(job) {
 // - Si las butacas de la última reserva siguen ocupadas, es la retención del propio job: se espera.
 // - Cuando se liberan, se mide cuánto duró la retención (para la espera adaptativa).
 // - Si otra persona tomó algunas butacas, se reservan las que siguen libres (reserva parcial).
-async function attemptReserve(job, dryRun = false) {
+async function attemptReserve(job, dryRun = false, notifyOnly = false) {
   const { cinemaId, sessionId, targetSeats } = job;
   if (!cinemaId || !sessionId || !targetSeats.length) {
     addLog('Configuración incompleta', 'warn', job);
@@ -623,7 +637,14 @@ async function attemptReserve(job, dryRun = false) {
       return { success: false, holdActive: true, error: msg };
     }
 
-    // 3. La retención terminó: medir cuánto duró
+    // 3. La retención parece terminada: medir cuánto duró. La medición y el olvido de las butacas
+    // propias solo se aplican si se confirma (ver commitRelease): a veces el mapa muestra libre por un
+    // momento una butaca que sigue retenida, y el cine rechaza la reserva.
+    const snapshot = held.length ? {
+      heldSeats: job.heldSeats, lastReservedAt: job.lastReservedAt, cycle: job.cycle && { ...job.cycle },
+      holdSamples: job.holdSamples, holdHint: job.holdHint,
+    } : null;
+    const pendingLogs = [];
     const c = job.cycle;
     if (c && c.reservedAt && !c.measured) {
       c.measured = true;
@@ -638,16 +659,27 @@ async function attemptReserve(job, dryRun = false) {
           { ms, loMs: lo, hiMs: elapsed, at: now, newOrder: !!c.newOrder, orderSeq: c.orderSeq || null }].slice(-HOLD_SAMPLES);
         job.holdHint = null;
         const ctx = c.newOrder ? 'orden nueva' : `misma orden, reserva nº ${c.orderSeq}`;
-        addLog(`Retención liberada tras ~${min(ms)} (entre ${min(lo)} y ${min(elapsed)}; ${ctx})`, 'info', job);
-        if (c.expiresAt) addLog(`Vencimiento informado por el cine: ${min(c.expiresAt - c.reservedAt)}; liberación medida: ~${min(ms)}`, 'info', job);
+        pendingLogs.push(`Retención liberada tras ~${min(ms)} (entre ${min(lo)} y ${min(elapsed)}; ${ctx})`);
+        if (c.expiresAt) pendingLogs.push(`Vencimiento informado por el cine: ${min(c.expiresAt - c.reservedAt)}; liberación medida: ~${min(ms)}`);
       } else {
         // Ya estaba libre en la primera revisión: solo se sabe que duró menos. No es una medición;
         // se usa como estimación para la próxima vuelta, que revisará antes y la medirá bien.
         job.holdHint = elapsed;
-        addLog(`Las butacas ya estaban libres en la primera revisión (${min(elapsed)}): la retención duró menos. La próxima vuelta revisará antes para medirla`, 'info', job);
+        pendingLogs.push(`Las butacas ya estaban libres en la primera revisión (${min(elapsed)}): la retención duró menos. La próxima vuelta revisará antes para medirla`);
       }
     }
     job.heldSeats = [];
+    const commitRelease = () => { for (const m of pendingLogs) addLog(m, 'info', job); };
+    // El cine rechazó la reserva de butacas que eran nuestras: la retención sigue, se deshace todo
+    const rollback = (why) => {
+      if (!snapshot || !free.some(t => snapshot.heldSeats.includes(t.label))) return false;
+      Object.assign(job, snapshot);
+      holdInfo = {};
+      job.seatState = Object.fromEntries(targetSeats.map(t =>
+        [t.label, snapshot.heldSeats.includes(t.label) ? 'held' : st[t.label] === 'free' ? 'free' : 'taken']));
+      addLog(`El mapa mostraba libre ${labels(free.filter(t => snapshot.heldSeats.includes(t.label))).join(', ')} pero el cine rechazó la reserva (${why}): se asume que la retención de este job sigue activa`, 'warn', job);
+      return true;
+    };
 
     // 4. Qué butacas se pueden reservar ahora
     const free  = targetSeats.filter(t => st[t.label] === 'free');
@@ -657,6 +689,11 @@ async function attemptReserve(job, dryRun = false) {
     const labels   = arr => arr.map(t => t.label);
 
     if (!free.length) {
+      commitRelease();
+      if (job.alert) {
+        job.alert = null;
+        addLog('Las butacas del aviso ya no están libres (reservadas por ti u otra persona)', 'info', job);
+      }
       const msg = `No disponibles: ${takenTxt}`;
       addLog(msg, 'warn', job);
       return { success: false, error: msg, taken: labels(taken), ...holdInfo };
@@ -664,7 +701,20 @@ async function attemptReserve(job, dryRun = false) {
     if (taken.length) addLog(`${takenTxt} ya no ${taken.length > 1 ? 'están disponibles' : 'está disponible'}; se continúa con ${labels(free).join(', ')}`, 'warn', job);
     else              addLog(`Asientos disponibles ✓ ${labels(free).join(',')}`, 'info', job);
 
+    // En pausa: no se reserva, solo se avisa (el panel muestra el aviso para reservar desde otro dispositivo)
+    if (notifyOnly) {
+      commitRelease();
+      const seats = labels(free);
+      if (!job.alert || job.alert.seats.join() !== seats.join()) {
+        job.alert = { seats, taken: labels(taken), at: now, lastSeenAt: now, ack: false };
+        addLog(`🔔 BUTACAS LIBRES: ${seats.join(', ')}${taken.length ? ` (no disponibles: ${labels(taken).join(', ')})` : ''}. En pausa: el bot no las reserva`, 'success', job);
+      } else job.alert.lastSeenAt = now;
+      return { success: false, notify: true, seats, taken: labels(taken),
+               error: `Libres: ${seats.join(', ')} · en pausa, solo aviso`, ...holdInfo };
+    }
+
     if (dryRun) {
+      commitRelease();
       addLog(`[TEST] Se reservarían: ${labels(free).join(', ')}`, 'success', job);
       return { success: true, dryRun: true, partial: taken.length > 0, seats: labels(free), taken: labels(taken), ...holdInfo };
     }
@@ -675,15 +725,17 @@ async function attemptReserve(job, dryRun = false) {
     try {
       result = await addTickets(job, area, free);
     } catch (e) {
-      if (!(e.status >= 500)) throw e;
+      if (!(e.status >= 500)) { if (rollback(e.message.slice(0, 80))) return { success: false, error: `Rechazada: ${e.message} · la retención propia sigue activa` }; throw e; }
       addLog(`${e.message}`, 'error', job);
       addLog('Error del servidor del cine: renovando sesión y userSessionId, y reintentando...', 'warn', job);
       newOrder(job);
       await initSession(true);
-      result = await addTickets(job, area, free);
+      try { result = await addTickets(job, area, free); }
+      catch (e2) { if (rollback(e2.message.slice(0, 80))) return { success: false, error: `Rechazada: ${e2.message} · la retención propia sigue activa` }; throw e2; }
     }
 
     if (result.Result === 0 && result.Order) {
+      commitRelease();
       const orderSeats = (result.Order.Sessions || []).flatMap(s => (s.Tickets || []).map(t => t.SeatData)).filter(Boolean);
       const reserved   = orderSeats.join(', ') || labels(free).join(', ');
       const total      = (result.Order.TotalValueCents / 100).toFixed(2);
@@ -711,6 +763,7 @@ async function attemptReserve(job, dryRun = false) {
         : `✅ RESERVADO: ${reserved} | S/.${total}`, 'success', job);
       return { success: true, partial: taken.length > 0, seats: reserved, total, taken: labels(taken), ...holdInfo };
     }
+    if (rollback(`Result=${result.Result}`)) return { success: false, error: `Rechazada (Result=${result.Result}): la retención propia sigue activa` };
     throw new Error(`Result=${result.Result}`);
 
   } catch (err) {
@@ -759,7 +812,7 @@ async function doReserve(job, dryRun, source) {
   if (job.busy) return { success: false, skipped: true, error: 'Ya hay un intento en curso para este job' };
   job.busy = true;
   let r;
-  try { r = await attemptReserve(job, dryRun); }
+  try { r = await attemptReserve(job, dryRun, job.paused && source === 'auto'); }
   finally { job.busy = false; }
 
   job.lastResult = { ...r, timestamp: new Date().toISOString() };
@@ -768,8 +821,8 @@ async function doReserve(job, dryRun, source) {
     source,
     success:  !!r.success,
     dryRun:   !!r.dryRun,
-    // reserved | partial | hold (retención propia activa) | failed | test
-    kind:     r.dryRun ? 'test' : r.success ? (r.partial ? 'partial' : 'reserved') : r.holdActive ? 'hold' : 'failed',
+    // reserved | partial | hold (retención propia activa) | free (en pausa: libres, solo aviso) | failed | test
+    kind:     r.dryRun ? 'test' : r.success ? (r.partial ? 'partial' : 'reserved') : r.holdActive ? 'hold' : r.notify ? 'free' : 'failed',
     msg:      r.success
       ? (r.dryRun ? `Disponibles: ${[].concat(r.seats).join(', ')}` : `Reservado ${r.seats} · S/.${r.total}`)
         + (r.taken?.length ? ` · no disponibles: ${r.taken.join(', ')}` : '')
@@ -802,7 +855,7 @@ async function runTick(job) {
   const delay = inHold ? holdDelay(job) : randomRetry(job);
 
   if (!r.skipped) {
-    const mode = r.success ? 'normal' : r.holdActive ? 'hold' : 'retry';
+    const mode = r.success ? 'normal' : r.holdActive ? 'hold' : r.notify ? 'notify' : 'retry';
     if (mode !== job.mode) {
       if (mode === 'retry') addLog(`Reserva fallida; reintentando cada ${range}`, 'warn', job);
       if (mode === 'normal' && job.mode === 'retry') addLog('Reserva recuperada', 'info', job);
@@ -836,13 +889,37 @@ function startJob(job, resumed = false) {
   return { ok: true };
 }
 
+// Pausa: el job sigue revisando pero ya no reserva; avisa cuando ve las butacas libres.
+// La retención vigente (si la hay) no se cancela: vence sola.
+function setPaused(job, paused) {
+  if (!!job.paused === !!paused) return;
+  job.paused = !!paused;
+  if (paused) {
+    addLog(`⏸ En pausa: el bot ya no reserva, solo avisará cuando las butacas estén libres${job.heldSeats?.length ? ' (la retención actual vencerá sola)' : ''}`, 'warn', job);
+  } else {
+    job.alert = null;
+    addLog('▶ Pausa quitada: el bot vuelve a reservar', 'info', job);
+    if (job.running && !job.busy) { clearTimeout(job.timer); runTick(job); }   // intentar ya
+  }
+  saveJobs();
+}
+
+// setTimeout no admite más de ~24.8 días (2^31-1 ms): con más, se dispara al instante.
+// Para funciones lejanas (preventas de meses) se espera por tramos y se vuelve a armar.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
 function armEndTimer(job) {
   clearTimeout(job.endTimer); job.endTimer = null;
   if (!job.running || !job.endAt) return;
+  const left = job.endAt - Date.now();
+  if (left > MAX_TIMEOUT_MS) {
+    job.endTimer = setTimeout(() => armEndTimer(job), MAX_TIMEOUT_MS);
+    return;
+  }
   job.endTimer = setTimeout(() => {
     addLog('Hora de fin alcanzada', 'info', job);
     stopJob(job);
-  }, Math.max(0, job.endAt - Date.now()));
+  }, Math.max(0, left));
 }
 
 function stopJob(job) {
@@ -851,6 +928,7 @@ function stopJob(job) {
   clearTimeout(job.endTimer); job.endTimer = null;
   job.nextAt = null;
   job.mode   = 'normal';
+  job.alert  = null;
   addLog('Job detenido', 'info', job);
   saveJobs();
 }
@@ -866,6 +944,349 @@ for (const saved of readData('jobs.json', [])) {
   job.seatState   = job.seatState || {};
   job.uidReservations = job.uidReservations || 0;
   jobs.set(job.id, job);
+}
+
+function jobAlerts() {
+  return [...jobs.values()].filter(j => j.running && j.paused && j.alert && !j.alert.ack).map(j => ({
+    jobId: j.id, name: j.name, cinemaName: j.cinemaName, movieTitle: j.movieTitle, showtime: j.showtime,
+    screenName: j.screenName, seats: j.alert.seats, taken: j.alert.taken, at: j.alert.at, lastSeenAt: j.alert.lastSeenAt,
+  }));
+}
+
+// ─── VIGÍAS DE PREESTRENO ─────────────────────────────────────────────────────
+// Consultan la cartelera cada pollMin–pollMax. Cuando la película tiene funciones en los cines
+// elegidos, eligen asientos centrales juntos en cada función y crean (e inician) un job de reserva.
+// Cada función se procesa una sola vez; si falla (sala sin publicar, sin asientos) se reintenta más tarde.
+
+// sessionsPerCinema: cuántas funciones reservar por cine (las de los primeros días, una por día);
+// prefFrom–prefTo: horario preferido dentro de cada día (si no hay, la función más cercana a ese rango)
+const WATCH_DEFAULTS = { pollMinMs: 3000, pollMaxMs: 5000, seatCount: 5, ticketCode: DEFAULTS.ticketCode,
+                         sessionsPerCinema: 3, prefFrom: '20:00', prefTo: '21:00' };
+const WATCH_MAX_SESSIONS = 3;       // máximo de funciones reservadas por cine
+const WATCH_NODETAIL_MS = 120000;   // tiempo que se espera el detalle (hora) de una función nueva antes de elegir sin él
+const WATCH_RETRY_MS = 30000;   // reintento de una función que no se pudo procesar
+const WATCHER_KEYS   = ['id', 'createdAt', 'name', 'movieId', 'movieTitle', 'posterUrl', 'cinemas', 'pollMinMs', 'pollMaxMs',
+  'seatCount', 'ticketCode', 'sessionsPerCinema', 'prefFrom', 'prefTo',
+  'running', 'handled', 'considered', 'chosen', 'checks', 'lastCheckAt', 'lastError', 'foundAt', 'movieSeenAt', 'events'];
+const watchers = new Map();
+
+function applyWatcherConfig(w, b) {
+  if ('cinemas' in b) {
+    const list = (Array.isArray(b.cinemas) ? b.cinemas : [])
+      .filter(c => c && /^[0-9A-Za-z]{1,20}$/.test(String(c.id)))
+      .map(c => ({ id: String(c.id), name: String(c.name || c.id).slice(0, 60) }));
+    if (!list.length) return 'Elige al menos un cine';
+    w.cinemas = list;
+  }
+  if ('pollMinMs' in b || 'pollMaxMs' in b) {
+    w.pollMinMs = Math.max(2000, parseInt(b.pollMinMs) || WATCH_DEFAULTS.pollMinMs);
+    w.pollMaxMs = Math.max(w.pollMinMs, parseInt(b.pollMaxMs) || w.pollMinMs);
+  }
+  if ('seatCount' in b)  w.seatCount  = Math.min(10, Math.max(1, parseInt(b.seatCount) || WATCH_DEFAULTS.seatCount));
+  if ('ticketCode' in b) w.ticketCode = String(b.ticketCode || '').trim().slice(0, 20) || WATCH_DEFAULTS.ticketCode;
+  if ('sessionsPerCinema' in b) w.sessionsPerCinema = Math.min(WATCH_MAX_SESSIONS, Math.max(1, parseInt(b.sessionsPerCinema) || WATCH_DEFAULTS.sessionsPerCinema));
+  const hhmm = (v, d) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(v || '')) ? String(v) : d;
+  if ('prefFrom' in b) w.prefFrom = hhmm(b.prefFrom, WATCH_DEFAULTS.prefFrom);
+  if ('prefTo' in b)   w.prefTo   = hhmm(b.prefTo, WATCH_DEFAULTS.prefTo);
+  if (w.prefTo < w.prefFrom) [w.prefFrom, w.prefTo] = [w.prefTo, w.prefFrom];
+  return null;
+}
+
+function newWatcher(b) {
+  const movieId = String(b.movieId || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{4,20}$/.test(movieId)) return { error: 'ID de película inválido' };
+  const w = {
+    id: crypto.randomBytes(5).toString('hex'), createdAt: new Date().toISOString(),
+    movieId, movieTitle: String(b.movieTitle || movieId).slice(0, 80), posterUrl: String(b.posterUrl || ''),
+    cinemas: [], ...WATCH_DEFAULTS, running: false, handled: {}, considered: {}, chosen: {}, checks: 0, lastCheckAt: null, lastError: null,
+    foundAt: null, movieSeenAt: null, events: [], timer: null, nextAt: null, busy: false,
+  };
+  const err = applyWatcherConfig(w, { cinemas: [], pollMinMs: WATCH_DEFAULTS.pollMinMs, pollMaxMs: WATCH_DEFAULTS.pollMaxMs, ...b });
+  if (err) return { error: err };
+  w.name = `Vigía ${w.movieTitle}`;
+  return w;
+}
+
+function publicWatcher(w) {
+  const o = {};
+  for (const k of WATCHER_KEYS) o[k] = w[k];
+  o.nextAt = w.nextAt;
+  o.busy   = w.busy;
+  o.status = w.status || null;
+  // Funciones procesadas, con el estado actual de su job
+  o.sessions = Object.entries(w.handled || {}).filter(([, h]) => h.status !== 'dropped').map(([key, h]) => {
+    const j = h.jobId && jobs.get(h.jobId);
+    return { key, ...h, job: j ? { id: j.id, name: j.name, running: j.running, paused: !!j.paused, mode: j.mode,
+      successes: j.successes, alert: !!(j.alert && !j.alert.ack) } : null };
+  }).sort((a, b) => String(a.cinemaName).localeCompare(String(b.cinemaName)) || String(a.showtime || a.key).localeCompare(String(b.showtime || b.key)));
+  return o;
+}
+
+let saveWTimer = null;
+function saveWatchers() {
+  clearTimeout(saveWTimer);
+  saveWTimer = setTimeout(() => {
+    const data = [...watchers.values()].map(w => Object.fromEntries(WATCHER_KEYS.map(k => [k, w[k]])));
+    try { writeData('watchers.json', data); } catch (e) { console.error('No se pudo guardar watchers.json:', e.message); }
+  }, 1000);
+}
+
+function addWLog(w, msg, type = 'info') {
+  addLog(msg, type, w);
+  w.events.unshift({ time: new Date().toISOString(), msg, type });
+  if (w.events.length > 60) w.events.pop();
+}
+
+function startWatcher(w, resumed = false) {
+  if (w.running && !resumed) return;
+  w.running = true;
+  addWLog(w, `${resumed ? 'Vigía reanudado' : 'Vigía iniciado'}: consulta cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s en ${w.cinemas.map(c => c.name).join(', ')}`);
+  watcherTick(w);
+  saveWatchers();
+}
+
+function stopWatcher(w, silent = false) {
+  w.running = false;
+  clearTimeout(w.timer); w.timer = null; w.nextAt = null;
+  if (!silent) addWLog(w, 'Vigía detenido');
+  saveWatchers();
+}
+
+async function watcherTick(w) {
+  if (!w.running) return;
+  clearTimeout(w.timer);
+  w.nextAt = null;
+  w.busy = true;
+  let changed = false;
+  try {
+    changed = await watcherCheck(w);
+    if (w.lastError) { addWLog(w, 'Consultas normalizadas'); w.lastError = null; changed = true; }
+  } catch (e) {
+    if (w.lastError !== e.message) { addWLog(w, `Error consultando la cartelera: ${e.message}`, 'error'); changed = true; }
+    w.lastError = e.message;
+  } finally { w.busy = false; }
+  w.checks++;
+  w.lastCheckAt = Date.now();
+  if (changed || w.checks % 20 === 0) saveWatchers();
+  if (!w.running) return;
+  const delay = w.pollMinMs + Math.floor(Math.random() * (w.pollMaxMs - w.pollMinMs + 1));
+  w.nextAt = Date.now() + delay;
+  w.timer  = setTimeout(() => watcherTick(w), delay);
+}
+
+// Devuelve true si hubo novedades (para guardar)
+async function watcherCheck(w) {
+  await ensureSession();
+  const mc = await cpGet('/api/v1-web/cache/moviescache');
+  const movie = (mc.movies || []).find(m => String(m.id).toUpperCase() === w.movieId);
+  if (!movie) return false;
+  let changed = false;
+  if (!w.movieSeenAt) {
+    w.movieSeenAt = Date.now();
+    w.movieTitle = movie.title || w.movieTitle;
+    w.posterUrl  = posterPath(movie) || w.posterUrl;
+    w.name = `Vigía ${w.movieTitle}`;
+    changed = true;
+  }
+
+  const ids = new Set(w.cinemas.map(c => c.id));
+  const found = [];
+  let others = 0;   // funciones en cines no elegidos (solo informativo)
+  for (const c of (movie.cinemas || [])) {
+    const n = (c.dates || []).reduce((k, d) => k + (d.sessions || []).length, 0);
+    if (!ids.has(c.cinemaId)) { others += n; continue; }
+    for (const d of (c.dates || [])) for (const key of (d.sessions || [])) found.push({ cinemaId: c.cinemaId, key, date: d.date });
+  }
+  // Estado visible en la tarjeta del vigía (no se guarda)
+  w.status = { inCatalog: true, selected: found.length, others, preSale: !!movie.isPreSale, comingSoon: !!movie.isComingSoon };
+  if (changed) {
+    // "Figura en el catálogo" no significa que tenga funciones: el catálogo incluye próximos estrenos
+    addWLog(w, found.length ? 'La película figura en el catálogo del cine'
+      : `La película figura en el catálogo del cine, pero aún sin funciones en los cines elegidos${others ? ` (sí en otros cines: ${others})` : ''}`);
+  }
+  const now = Date.now();
+  if (!found.length) return changed;
+  // Solo se vuelve a elegir si hay funciones nuevas (o esperando su hora) o reintentos pendientes;
+  // así, con todo procesado, cada consulta es un solo GET de la cartelera.
+  const retryDue = key => { const h = w.handled[key]; return h && h.status !== 'job' && now - h.at > WATCH_RETRY_MS; };
+  const waiting  = key => typeof w.considered[key] === 'number' && w.considered[key] > 1 && now - w.considered[key] < WATCH_NODETAIL_MS;
+  if (!found.some(f => !w.considered[f.key] || waiting(f.key) || retryDue(f.key))) return changed;
+
+  if (!w.foundAt) {
+    w.foundAt = now;
+    const perCinema = w.cinemas.map(c => [c.name, found.filter(f => f.cinemaId === c.id).length]).filter(([, n]) => n);
+    addWLog(w, `🎉 FUNCIONES DETECTADAS: ${perCinema.map(([n, k]) => `${n} (${k})`).join(', ')}`, 'success');
+  }
+
+  const sc = await cpGet('/api/v1-web/cache/sessioncache');
+  const sessMap = {};
+  for (const s of (sc.sessions || [])) sessMap[s.id] = s;
+
+  // Por cine: elegir las funciones de los primeros días (ver chooseSessions)
+  const pending = [];
+  for (const c of w.cinemas) {
+    const list = found.filter(f => f.cinemaId === c.id)
+      .map(f => { const ss = sessMap[f.key]; return { f, s: ss, day: String(f.date).slice(0, 10), mins: ss?.showtime ? toMins(ss.showtime) : null, at: limaTime(ss?.showtime) }; })
+      .filter(x => !(x.at && x.at < now))                          // ya empezó
+      .filter(x => w.handled[x.f.key]?.status !== 'noseats');      // agotada: se elige otra
+    if (!list.length) continue;
+    const picks = chooseSessions(list, w.sessionsPerCinema, toMins('T' + w.prefFrom), toMins('T' + w.prefTo));
+    const sig = picks.map(x => x.f.key).join(',');
+    const whenOf = x => x.s?.showtime ? shortWhen(x.s.showtime) : `${shortWhen(x.day + 'T').slice(0, 5)} (hora desconocida)`;
+    if (w.chosen[c.id] !== sig) {
+      w.chosen[c.id] = sig;
+      const days = new Set(list.map(x => x.day)).size;
+      addWLog(w, `${c.name}: ${list.length} funciones en ${days} día${days > 1 ? 's' : ''}; se eligen ${picks.map(x => `${whenOf(x)} (${x.why})`).join(', ')}`);
+      // Las funciones que quedaron fuera de la selección: se detiene y elimina su job
+      const keep = new Set(picks.map(x => x.f.key));
+      for (const [key, h] of Object.entries(w.handled)) {
+        if (h.cinemaId !== c.id || keep.has(key) || h.status !== 'job') continue;
+        const j = jobs.get(h.jobId);
+        if (j) {
+          stopJob(j);
+          jobs.delete(j.id);
+          addLog('Job eliminado por el vigía: la función ya no está entre las elegidas', 'info', j);
+          saveJobs();
+        }
+        w.handled[key] = { ...h, status: 'dropped', jobId: null, msg: 'ya no está entre las elegidas', at: now };
+        addWLog(w, `${c.name} ${h.showtime ? shortWhen(h.showtime) : key}: ya no está entre las elegidas; job eliminado`, 'warn');
+      }
+    }
+    for (const x of picks) { const h = w.handled[x.f.key]; if (!h || retryDue(x.f.key)) pending.push(x); }
+  }
+  // Funciones ya vistas con su hora; las que aún no tienen detalle se esperan un rato antes de darlas por vistas
+  for (const f of found) w.considered[f.key] = sessMap[f.key] ? 1 : (w.considered[f.key] || now);
+  await Promise.all(pending.map(x => watcherSession(w, movie, x.f, x.s)));
+  return true;
+}
+
+// "2026-10-20T20:30:00" → minutos desde medianoche (hora de la función, tal como la da el cine)
+const toMins = iso => { const t = String(iso).split('T')[1] || ''; return (+t.slice(0, 2)) * 60 + (+t.slice(3, 5)); };
+
+// Elige hasta n funciones (máx. 3) de un cine, en este orden:
+//   1. la primera función disponible, a cualquier hora;
+//   2. la primera que empieza en el horario preferido (8–9 pm por defecto), aunque sea otro día;
+//   3. otra en el horario preferido pero de un día distinto a las ya elegidas (más opciones de fecha);
+//   si alguna no existe, se completa con la siguiente función más próxima.
+function chooseSessions(list, n, fromMin, toMin) {
+  const inWin  = x => x.mins != null && x.mins >= fromMin && x.mins <= toMin;
+  const when   = x => x.s?.showtime || `${x.day}T99:99`;   // sin hora: al final de su día
+  const sorted = [...list].sort((a, b) => when(a).localeCompare(when(b)));
+  const picks  = [];
+  const take = (x, why) => { if (x && picks.length < n && !picks.includes(x)) picks.push(Object.assign(x, { why })); };
+  const label = `${fmtHM(fromMin)}–${fmtHM(toMin)}`;
+  take(sorted[0], 'primera');
+  take(sorted.find(x => inWin(x) && !picks.includes(x)), label);
+  take(sorted.find(x => inWin(x) && !picks.includes(x) && !picks.some(p => p.day === x.day)), `${label}, otro día`);
+  for (const x of sorted) take(x, 'siguiente');
+  return picks;
+}
+const fmtHM = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+// Las horas del cine vienen sin zona ("2026-10-12T20:10:00"): son hora de Lima
+const limaTime  = iso => !iso ? null : new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + '-05:00').getTime() || null;
+const shortWhen = iso => iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}` : '';
+
+async function watcherSession(w, movie, f, s) {
+  const cinemaName = w.cinemas.find(c => c.id === f.cinemaId)?.name || f.cinemaId;
+  const sessionId  = String(s?.sessionId || f.key.split('-').pop());
+  const when = s?.showtime ? shortWhen(s.showtime) : shortWhen(String(f.date)).slice(0, 5);
+  const base = { cinemaId: f.cinemaId, cinemaName, sessionId, showtime: s?.showtime || null, screenName: s?.screenName || '', at: Date.now() };
+  const fail = (status, msg) => {
+    const prev = w.handled[f.key];
+    w.handled[f.key] = { ...base, status, msg };
+    if (prev?.msg !== msg) addWLog(w, `${cinemaName} ${when}: ${msg}`, 'warn');
+  };
+  try {
+    const plan = await cpGet(`/api/v1-web/seatplan/cinema/${f.cinemaId}/session/${sessionId}`);
+    const area = plan.SeatLayoutData?.Areas?.[0];
+    if (!area) return fail('error', 'la sala aún no tiene mapa de asientos; se reintentará');
+    const pick = pickCentralSeats(area, w.seatCount);
+    if (!pick) return fail('noseats', 'no hay asientos libres juntos; se reintentará');
+
+    const name = `${cinemaName} · ${when} · ${movie.title || w.movieTitle}`.slice(0, 60);
+    const showAt = limaTime(s?.showtime);
+    const job = newJob({
+      name, cinemaId: f.cinemaId, cinemaName, movieId: w.movieId, movieTitle: movie.title || w.movieTitle,
+      posterUrl: posterPath(movie) || w.posterUrl, sessionId, showtime: s?.showtime || null, screenName: s?.screenName || '',
+      day: String(f.date).slice(0, 10), ticketCode: w.ticketCode, targetSeats: pick.seats,
+      endAt: showAt ? showAt + 20 * 60000 : null,
+    });
+    // Tipo de entrada: el configurado; si esta función no lo tiene, una "General"; si no, la primera
+    const tickets = await getTickets(f.cinemaId, sessionId, job.userSessionId);
+    if (!tickets.length) return fail('error', 'la función aún no tiene entradas a la venta; se reintentará');
+    const t = tickets.find(x => x.TicketTypeCode === w.ticketCode)
+           || tickets.find(x => /general/i.test(x.Description || '')) || tickets[0];
+    job.ticketCode = t.TicketTypeCode;
+    job.ticketDesc = t.Description || '';
+    job.watcherId  = w.id;
+    jobs.set(job.id, job);
+    const labels = pick.seats.map(x => x.label).join(', ');
+    w.handled[f.key] = { ...base, status: 'job', jobId: job.id, seats: pick.seats.map(x => x.label) };
+    addWLog(w, `${cinemaName} ${when}: job creado con ${labels}${pick.seats.length < w.seatCount ? ` (solo ${pick.seats.length} juntos disponibles)` : ''} · ${job.ticketDesc || job.ticketCode}`, 'success');
+    addLog(`Job creado por el vigía de preestreno (${labels})`, 'info', job);
+    const r = startJob(job);
+    if (!r.ok) addWLog(w, `${name}: no se pudo iniciar (${r.error})`, 'warn');
+    saveJobs();
+  } catch (e) {
+    fail('error', `${e.message.slice(0, 120)}; se reintentará`);
+  }
+}
+
+// Asientos centrales juntos: en cada fila se buscan tramos de butacas libres contiguas (un pasillo
+// o una butaca ocupada corta el tramo). Cada ventana de n butacas se puntúa por su distancia al
+// centro horizontal de la sala y a la fila ideal: algo por detrás de la mitad, al ~60 % de la
+// profundidad contando desde la pantalla. Gana la de menor puntuación. Si no hay n juntas, se
+// prueba con n-1, n-2… hasta 2.
+function pickCentralSeats(area, n) {
+  const rows = (area.Rows || []).map((r, ri) => ({ r, ri })).filter(x => (x.r.Seats || []).length);
+  if (!rows.length) return null;
+  const col  = s => s.Position?.ColumnIndex ?? 0;
+  const cols = rows.flatMap(x => x.r.Seats.map(col));
+  const cMin = Math.min(...cols), cMax = Math.max(...cols);
+  const cMid = (cMin + cMax) / 2, half = Math.max(1, (cMax - cMin) / 2);
+  const IDEAL_DEPTH = 0.6, W_H = 1, W_V = 0.8;
+  const usable = s => s.Status === 0 && s.SeatStyle !== 3;
+
+  for (let want = n; want >= Math.min(n, 2); want--) {
+    let best = null;
+    rows.forEach(({ r, ri }, k) => {
+      // Rows[0] es la fila del fondo; la última con butacas es la más cercana a la pantalla
+      const depth = rows.length > 1 ? (rows.length - 1 - k) / (rows.length - 1) : IDEAL_DEPTH;
+      const seats = [...r.Seats].sort((a, b) => col(a) - col(b));
+      let run = [];
+      const flush = () => {
+        for (let i = 0; i + want <= run.length; i++) {
+          const win = run.slice(i, i + want);
+          const center = (col(win[0]) + col(win[want - 1])) / 2;
+          const score = W_H * Math.abs(center - cMid) / half + W_V * Math.abs(depth - IDEAL_DEPTH);
+          if (!best || score < best.score) best = { score, ri, row: r, win };
+        }
+        run = [];
+      };
+      for (const s of seats) {
+        const prev = run[run.length - 1];
+        if (!usable(s)) { flush(); continue; }
+        if (prev && col(s) !== col(prev) + 1) flush();
+        run.push(s);
+      }
+      flush();
+    });
+    if (best) return {
+      seats: best.win.map(s => ({ rowIndex: best.ri, columnIndex: col(s), areaNumber: area.AreaNumber || 1,
+                                  label: `${best.row.PhysicalName}${s.Id || col(s)}` })),
+    };
+  }
+  return null;
+}
+
+for (const saved of readData('watchers.json', [])) {
+  const w = { ...saved, timer: null, nextAt: null, busy: false };
+  w.handled = w.handled || {}; w.events = w.events || []; w.cinemas = w.cinemas || [];
+  w.considered = w.considered || {}; w.chosen = w.chosen || {};
+  for (const k of ['sessionsPerCinema', 'prefFrom', 'prefTo']) if (w[k] == null) w[k] = WATCH_DEFAULTS[k];
+  w.sessionsPerCinema = Math.min(WATCH_MAX_SESSIONS, w.sessionsPerCinema);
+  watchers.set(w.id, w);
 }
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────────
@@ -899,7 +1320,8 @@ function serveFile(res, rel) {
 
 function redirect(res, to) { res.writeHead(302, { Location: to }); res.end(); }
 
-const JOB_ROUTE = /^\/bot\/jobs\/([a-f0-9]+)(?:\/(start|stop|test|reserve-once|delete))?$/;
+const JOB_ROUTE = /^\/bot\/jobs\/([a-f0-9]+)(?:\/(start|stop|test|reserve-once|delete|pause|resume|ack))?$/;
+const WATCHER_ROUTE = /^\/bot\/watchers\/([a-f0-9]+)(?:\/(start|stop|delete))?$/;
 
 http.createServer(async (req, res) => {
   const url      = new URL(req.url, `http://localhost:${PORT}`);
@@ -942,6 +1364,8 @@ http.createServer(async (req, res) => {
       if (/^\/(bot|admin|auth)\//.test(pathname)) return json(res, 401, { error: 'No autenticado' });
       return redirect(res, '/login');
     }
+
+    if (method === 'GET' && pathname === '/preestreno') return serveFile(res, 'preestreno.html');
 
     if (method === 'POST' && pathname === '/auth/logout') {
       sessions.delete(parseCookies(req).cpb_session);
@@ -990,15 +1414,7 @@ http.createServer(async (req, res) => {
 
     if (method === 'GET' && pathname === '/bot/cinemas') {
       await ensureSession();
-      const data = await cpGet('/api/v1-web/cache/cinemascache');
-      const cinemas = Array.isArray(data) ? data : (data.cinemas || data);
-      const list = cinemas.map(c => ({
-        id:   c.ID   || c.id || c.cinemaId || c.Id,
-        name: c.name || c.Name || c.description || c.Description,
-        slug: c.formattedCinemaName || c.slug || c.Slug || '',
-      })).filter(c => c.id && c.name)
-         .sort((a, b) => a.name.localeCompare(b.name));
-      return json(res, 200, { cinemas: list });
+      return json(res, 200, { cinemas: await getCinemas() });
     }
 
     if (method === 'GET' && pathname === '/bot/movies') {
@@ -1033,6 +1449,46 @@ http.createServer(async (req, res) => {
         .filter(m => m.sessions.length > 0);
 
       return json(res, 200, { movies });
+    }
+
+    // ── Consultar preestreno: funciones de una película en todas las fechas ──
+    // Sin movieId: resumen de toda la cartelera (para elegir). Con movieId: sus funciones por cine.
+    if (method === 'GET' && pathname === '/bot/presale') {
+      const movieId = (url.searchParams.get('movieId') || '').trim().toUpperCase();
+      if (movieId && !/^[A-Z0-9]{4,20}$/.test(movieId)) return json(res, 400, { error: 'ID inválido' });
+      await ensureSession();
+      const moviesCache = await cpGet('/api/v1-web/cache/moviescache');
+      const restrictedIds = moviesCache.idMoviesBookingRestricted || [];
+      const info = m => ({
+        id: m.id, title: m.title, posterUrl: posterPath(m), genre: m.genre, rating: m.ratingDescription, runtime: m.runTime,
+        openingDate: m.OpeningDate, isPreSale: !!m.isPreSale, isComingSoon: !!m.isComingSoon, isNewRelease: !!m.isNewRelease,
+        restricted: !!m.restricted, bookingRestricted: restrictedIds.includes(m.id),
+        sessionCount: (m.cinemas || []).reduce((n, c) => n + (c.dates || []).reduce((k, d) => k + (d.sessions || []).length, 0), 0),
+        cinemaCount: (m.cinemas || []).length,
+      });
+
+      if (!movieId) {
+        return json(res, 200, { checkedAt: new Date().toISOString(), movies: (moviesCache.movies || []).map(info) });
+      }
+
+      const movie = (moviesCache.movies || []).find(m => String(m.id).toUpperCase() === movieId);
+      if (!movie) return json(res, 200, { checkedAt: new Date().toISOString(), found: false, movieId });
+
+      const [sessionCache, cinemas] = await Promise.all([cpGet('/api/v1-web/cache/sessioncache'), getCinemas()]);
+      const sessMap = {};
+      for (const s of (sessionCache.sessions || [])) sessMap[s.id] = s;
+      const cinemaName = Object.fromEntries(cinemas.map(c => [c.id, c.name]));
+
+      const list = (movie.cinemas || []).map(c => {
+        const sessions = [];
+        for (const d of (c.dates || []))
+          for (const sid of (d.sessions || []))
+            sessions.push({ ...(sessMap[sid] || { id: sid }), date: d.date, formats: d.formats, detail: !!sessMap[sid] });
+        sessions.sort((a, b) => String(a.showtime || a.date).localeCompare(String(b.showtime || b.date)));
+        return { cinemaId: c.cinemaId, name: cinemaName[c.cinemaId] || c.cinemaId, sessions };
+      }).sort((a, b) => a.name.localeCompare(b.name));
+
+      return json(res, 200, { checkedAt: new Date().toISOString(), found: true, movie: info(movie), cinemas: list });
     }
 
     if (method === 'GET' && pathname === '/bot/poster') {
@@ -1092,6 +1548,47 @@ http.createServer(async (req, res) => {
       return json(res, 200, await attemptReserve(tmp, true));
     }
 
+    if (method === 'POST' && pathname === '/bot/jobs/pause-all') {
+      const { paused } = await readBody(req);
+      for (const j of jobs.values()) if (j.running) setPaused(j, !!paused);
+      return json(res, 200, { ok: true });
+    }
+
+    // Avisos vigentes (butacas libres en jobs en pausa), para cualquier página
+    if (method === 'GET' && pathname === '/bot/alerts') {
+      return json(res, 200, { alerts: jobAlerts() });
+    }
+
+    // ── Vigías de preestreno ──────────────────────────────────────────────
+    if (method === 'GET' && pathname === '/bot/watchers') {
+      return json(res, 200, { watchers: [...watchers.values()].map(publicWatcher) });
+    }
+
+    if (method === 'POST' && pathname === '/bot/watchers') {
+      const b = await readBody(req);
+      const w = newWatcher(b);
+      if (w.error) return json(res, 400, { error: w.error });
+      watchers.set(w.id, w);
+      addWLog(w, `Vigía creado: ${w.cinemas.map(c => c.name).join(', ')}`);
+      if (b.start !== false) startWatcher(w);
+      saveWatchers();
+      return json(res, 200, { ok: true, watcher: publicWatcher(w) });
+    }
+
+    const wm = pathname.match(WATCHER_ROUTE);
+    if (wm && method === 'POST') {
+      const w = watchers.get(wm[1]);
+      if (!w) return json(res, 404, { error: 'Vigía no encontrado' });
+      if (wm[2] === 'start')  { startWatcher(w); return json(res, 200, { ok: true }); }
+      if (wm[2] === 'stop')   { stopWatcher(w);  return json(res, 200, { ok: true }); }
+      if (wm[2] === 'delete') { stopWatcher(w, true); watchers.delete(w.id); saveWatchers(); return json(res, 200, { ok: true }); }
+      const err = applyWatcherConfig(w, await readBody(req));
+      if (err) return json(res, 400, { error: err });
+      addWLog(w, `Configuración actualizada: ${w.cinemas.map(c => c.name).join(', ')}`);
+      saveWatchers();
+      return json(res, 200, { ok: true, watcher: publicWatcher(w) });
+    }
+
     const m = pathname.match(JOB_ROUTE);
     if (m && method === 'POST') {
       const job = jobs.get(m[1]);
@@ -1110,6 +1607,12 @@ http.createServer(async (req, res) => {
       }
       if (action === 'stop') {
         stopJob(job);
+        return json(res, 200, { ok: true });
+      }
+      if (action === 'pause')  { setPaused(job, true);  return json(res, 200, { ok: true }); }
+      if (action === 'resume') { setPaused(job, false); return json(res, 200, { ok: true }); }
+      if (action === 'ack') {                // descartar el aviso (vuelve a avisar si cambian las butacas libres)
+        if (job.alert) { job.alert.ack = true; saveJobs(); }
         return json(res, 200, { ok: true });
       }
       if (action === 'test')         return json(res, 200, await doReserve(job, true, 'test'));
@@ -1165,4 +1668,5 @@ http.createServer(async (req, res) => {
   console.log(`   Node.js ${process.version} · ${appPasswords().length} contraseñas de usuario · ${jobs.size} jobs\n`);
   await initSession();
   for (const job of jobs.values()) if (job.running) startJob(job, true);
+  for (const w of watchers.values()) if (w.running) startWatcher(w, true);
 });

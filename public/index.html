@@ -89,7 +89,7 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
   padding: 9px 14px; border-radius: var(--radius); border: 1px solid transparent; cursor: pointer;
-  font-size: .82rem; font-weight: 500; transition: background .15s, color .15s, border-color .15s; white-space: nowrap;
+  font-size: .82rem; font-weight: 500; transition: background .15s, color .15s, border-color .15s; white-space: nowrap; text-decoration: none;
 }
 .btn-block { width: 100%; }
 .btns { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
@@ -265,7 +265,7 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .jc-name { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
 .jc-line { font-size: .76rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jc-line b { color: var(--text); font-weight: 500; }
-.jc-actions { display: flex; gap: 6px; margin-top: 6px; }
+.jc-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .jobs-empty { padding: 10px 20px 24px; color: var(--muted); font-size: .85rem; }
 
 .badge { display: inline-block; padding: 3px 8px; border-radius: 3px; font-size: .72rem; font-weight: 500; color: #fff; white-space: nowrap; }
@@ -275,6 +275,33 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .badge-gray  { background: #c4c7d6; }
 .badge-cyan  { background: var(--cyan); }
 .badge-orange{ background: var(--orange); }
+.badge-alert { background: #e8114b; animation: pulse 1.2s ease-in-out infinite; }
+.badge-paused{ background: #fff; color: var(--orange); box-shadow: inset 0 0 0 1px var(--orange); }
+.btn-pause { background: #fff; color: var(--orange); border-color: var(--orange); }
+.btn-pause:hover { background: rgba(249,107,26,.08); }
+.job-card.paused { border-style: dashed; border-color: var(--orange); }
+.job-card.alerting { border-color: #e8114b; box-shadow: 0 0 0 3px rgba(232,17,75,.18); }
+
+/* ── Aviso de butacas libres (jobs en pausa) ── */
+.alerts { display: flex; flex-direction: column; gap: 10px; }
+.alert-box {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; border-radius: var(--radius);
+  background: linear-gradient(100deg, #e8114b, #f96b1a); color: #fff; box-shadow: 0 6px 24px rgba(232,17,75,.35);
+  animation: alertGlow 1.6s ease-in-out infinite;
+}
+.alert-ico { font-size: 2rem; line-height: 1; animation: ring 1s ease-in-out infinite; }
+.alert-main { flex: 1; min-width: 220px; }
+.alert-title { font-size: 1.15rem; font-weight: 700; letter-spacing: .2px; }
+.alert-sub { font-size: .85rem; opacity: .95; margin-top: 3px; }
+.alert-seats { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
+.alert-seats span { background: #fff; color: #c20d3e; font-weight: 700; font-size: .85rem; padding: 3px 9px; border-radius: 4px; }
+.alert-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.alert-actions .btn { background: rgba(255,255,255,.18); color: #fff; border-color: rgba(255,255,255,.6); }
+.alert-actions .btn:hover { background: rgba(255,255,255,.3); }
+.alert-actions .btn.solid { background: #fff; color: #c20d3e; border-color: #fff; }
+@keyframes pulse { 50% { opacity: .55; } }
+@keyframes alertGlow { 50% { box-shadow: 0 6px 34px rgba(232,17,75,.6); } }
+@keyframes ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(-15deg); } 40% { transform: rotate(13deg); } 60% { transform: rotate(-8deg); } }
 
 /* ── Inferior: detalles + consola ── */
 .bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px; align-items: start; }
@@ -403,10 +430,13 @@ aside input:focus { outline: none; border-color: var(--purple); }
     <div class="top-right">
       <div class="sess"><div class="sess-dot" id="sessIndicator"></div><span id="sessLabel">Conectando...</span></div>
       <span class="role" id="roleBadge"></span>
+      <a class="btn btn-light btn-sm" href="/preestreno">🔎 Consultar preestreno</a>
       <button class="btn btn-light btn-sm" onclick="toggleConfig()">⚙ Configuración</button>
       <button class="btn btn-light btn-sm" onclick="logout()">Salir</button>
     </div>
   </header>
+
+  <div class="alerts" id="alerts" style="position:sticky;top:60px;z-index:25;padding:0 24px"></div>
 
   <!-- ═══════════════ CONFIGURACIÓN (modal) ═══════════════ -->
   <div class="modal-backdrop" id="configModal" onclick="if (event.target === this) closeConfig()">
@@ -523,10 +553,12 @@ aside input:focus { outline: none; border-color: var(--purple); }
     </div>
 
     <!-- ═══════════════ JOBS ═══════════════ -->
-    <div class="card">
+    <div class="card" id="jobsCard">
       <div class="card-head">
         <div class="card-title">Jobs</div>
         <div class="card-sub" id="jobsSub"></div>
+        <button class="btn btn-light btn-sm" onclick="simulateAlert()" title="Muestra cómo se ve y suena el aviso de butacas libres, sin tocar ningún job">🔔 Simular aviso</button>
+        <span id="pauseAllBtns"></span>
         <button class="btn btn-light btn-sm" onclick="newJobEditor()">＋ Nuevo job</button>
       </div>
       <div id="jobsGrid"></div>
@@ -1053,6 +1085,22 @@ async function stopJob(id = state.editingJobId) {
   pollStatus();
 }
 
+async function pauseJob(id, paused) {
+  await postJ(`/bot/jobs/${id}/${paused ? 'pause' : 'resume'}`);
+  pollStatus();
+}
+
+async function pauseAll(paused) {
+  if (paused && !confirm('¿Pausar todos los jobs? Dejarán de reservar y solo avisarán cuando las butacas estén libres.')) return;
+  await postJ('/bot/jobs/pause-all', { paused });
+  pollStatus();
+}
+
+async function ackAlert(id) {
+  await postJ(`/bot/jobs/${id}/ack`);
+  pollStatus();
+}
+
 async function deleteJob(id) {
   const job = state.jobs.find(j => j.id === id);
   if (!confirm(`¿Eliminar el job "${job?.name}"? Se detiene y se borra su histórico.`)) return;
@@ -1140,8 +1188,10 @@ async function selectJob(id) {
 
 // ── Panel de jobs, detalles, consola, histórico ───────────────────────────────
 function jobBadge(j) {
-  if (j.busy && j.running) return '<span class="badge badge-green">Intentando…</span>';
   if (!j.running) return '<span class="badge badge-gray">Detenido</span>';
+  if (j.paused && j.alert) return '<span class="badge badge-alert">🔔 ¡Libres!</span>';
+  if (j.paused) return `<span class="badge badge-paused">⏸ Pausado${j.mode === 'hold' ? ' · retención' : ''}</span>`;
+  if (j.busy) return '<span class="badge badge-green">Intentando…</span>';
   if (j.mode === 'hold')  return '<span class="badge badge-cyan">En retención</span>';
   return j.mode === 'retry' ? '<span class="badge badge-yellow">Reintentando</span>' : '<span class="badge badge-green">Corriendo</span>';
 }
@@ -1201,14 +1251,19 @@ function nextText(j) {
 
 function renderJobs() {
   const running = state.jobs.filter(j => j.running).length;
-  $('jobsSub').textContent = state.jobs.length ? `${state.jobs.length} jobs · ${running} corriendo` : '';
+  const pausedN = state.jobs.filter(j => j.running && j.paused).length;
+  $('jobsSub').textContent = state.jobs.length ? `${state.jobs.length} jobs · ${running} corriendo${pausedN ? ` · ${pausedN} en pausa` : ''}` : '';
+  $('pauseAllBtns').innerHTML = !running ? '' : [
+    pausedN < running ? '<button class="btn btn-pause btn-sm" onclick="pauseAll(true)" title="Todos dejan de reservar y solo avisan">⏸ Pausar todos</button>' : '',
+    pausedN ? '<button class="btn btn-light btn-sm" onclick="pauseAll(false)">▶ Quitar pausa a todos</button>' : '',
+  ].join(' ');
   if (!state.jobs.length) {
     $('jobsGrid').innerHTML = '<div class="jobs-empty">Aún no hay jobs. Elige función y asientos, y pulsa “Crear e iniciar job”.</div>';
     return;
   }
   $('jobsGrid').className = 'jobs-grid';
   $('jobsGrid').innerHTML = state.jobs.map(j => `
-    <div class="job-card ${j.id === state.editingJobId ? 'sel' : ''}" onclick="selectJob('${j.id}')">
+    <div class="job-card ${j.id === state.editingJobId ? 'sel' : ''} ${j.running && j.paused ? (j.alert ? 'alerting' : 'paused') : ''}" onclick="selectJob('${j.id}')">
       <img src="${esc(j.posterUrl)}" alt="" onerror="this.style.visibility='hidden'">
       <div class="jc-body">
         <div class="jc-top"><span class="jc-name" title="${esc(j.name)}">${esc(j.name)}</span>${jobBadge(j)}</div>
@@ -1220,6 +1275,10 @@ function renderJobs() {
           ${j.running
             ? `<button class="btn btn-pink btn-sm" onclick="event.stopPropagation();stopJob('${j.id}')">⏹ Detener</button>`
             : `<button class="btn btn-green btn-sm" onclick="event.stopPropagation();startJob('${j.id}')">▶ Iniciar</button>`}
+          ${j.running ? (j.paused
+            ? `<button class="btn btn-purple btn-sm" title="El bot vuelve a reservar" onclick="event.stopPropagation();pauseJob('${j.id}', false)">▶ Quitar pausa</button>`
+            : `<button class="btn btn-pause btn-sm" title="Deja de reservar; solo avisa cuando las butacas estén libres" onclick="event.stopPropagation();pauseJob('${j.id}', true)">⏸ Pausar</button>`) : ''}
+          <button class="btn btn-light btn-sm" title="Muestra cómo te avisará este job cuando esté en pausa y vea sus butacas libres (no cambia nada)" onclick="event.stopPropagation();simulateAlert('${j.id}')">🔔 Simular</button>
           <button class="btn btn-light btn-sm" onclick="event.stopPropagation();deleteJob('${j.id}')">🗑 Eliminar</button>
         </div>
       </div>
@@ -1252,7 +1311,7 @@ function renderJob() {
     j.holdHint ? `<span style="color:var(--orange)">Estimación de un solo uso: &lt; ${fmtMin(j.holdHint)}</span> <span style="color:var(--muted)">(se liberó antes de la primera revisión; no cuenta como medición)</span>` : '',
   ].filter(Boolean).join('<br>');
   const rows = [
-    ['Estado',           jobBadge(j)],
+    ['Estado',           jobBadge(j) + (j.paused ? `<div style="color:var(--orange);font-size:.78rem;margin-top:4px">En pausa: sigue revisando pero no reserva; avisa aquí cuando las butacas estén libres${j.heldSeats?.length ? '. La retención actual vencerá sola' : ''}</div>` : '')],
     ['Próximo intento',  nextText(j)],
     ['Hora de fin',      j.endAt ? `${fmtDay(j.endAt)} ${fmtTime(j.endAt)}` : '—'],
     ['Cine',             esc(j.cinemaName || j.cinemaId)],
@@ -1303,9 +1362,10 @@ function renderHistory() {
   const ok      = hist.filter(h => h.success && !h.dryRun).length;
   const partial = hist.filter(h => h.kind === 'partial').length;
   const holds   = hist.filter(h => h.kind === 'hold').length;
-  const failed  = hist.filter(h => !h.success && h.kind !== 'hold').length;
+  const failed  = hist.filter(h => !h.success && h.kind !== 'hold' && h.kind !== 'free').length;
   $('histSub').textContent = hist.length
     ? `${hist.length} intentos · ${ok} reservas OK${partial ? ` (${partial} parciales)` : ''} · ${holds} en retención · ${failed} fallidos` : '';
+  // (las revisiones en pausa con butacas libres se muestran como "Libres (aviso)")
   if (!hist.length) { $('histRows').innerHTML = '<tr><td colspan="5" class="hist-empty">Aún no hay intentos</td></tr>'; return; }
 
   const nextCell = h => h.nextInMs ? `+${Math.round(h.nextInMs / 1000)} s · ${fmtClock(new Date(h.time).getTime() + h.nextInMs)}` : '—';
@@ -1346,7 +1406,7 @@ function renderHistory() {
 // Junta intentos consecutivos del mismo job con el mismo resultado repetitivo (en retención, o el
 // mismo fallo) para que no llenen la tabla. Recibe el histórico ordenado del más nuevo al más viejo.
 function groupHistory(hist) {
-  const key = h => (h.kind === 'hold' || h.kind === 'failed')
+  const key = h => (h.kind === 'hold' || h.kind === 'failed' || h.kind === 'free')
     ? `${h.jobId}|${h.kind}|${h.msg.replace(/ \([\d.]+ min\)$/, '')}` : null;
   const groups = [];
   for (const h of hist) {
@@ -1365,6 +1425,7 @@ function kindBadge(kind) {
     hold:     ['badge-cyan',   'En retención'],
     failed:   ['badge-pink',   'Fallido'],
     test:     ['badge-yellow', 'Test OK'],
+    free:     ['badge-alert',  'Libres (aviso)'],
   };
   const [cls, txt] = B[kind] || B.failed;
   return `<span class="badge ${cls}">${txt}</span>`;
@@ -1397,6 +1458,9 @@ async function pollStatus() {
     $('tabPasswordsBtn').style.display = s.role === 'admin' ? '' : 'none';
 
     renderEditor();
+    renderAlerts(state.jobs.filter(j => j.running && j.paused && j.alert && !j.alert.ack).map(j => ({
+      jobId: j.id, name: j.name, cinemaName: j.cinemaName, movieTitle: j.movieTitle, showtime: j.showtime,
+      screenName: j.screenName, seats: j.alert.seats, taken: j.alert.taken, at: j.alert.at })));
     renderJobs();
     renderJob();
     renderLog(s.log || []);
@@ -1414,6 +1478,86 @@ async function pollStatus() {
     $('sessLabel').textContent = 'Servidor desconectado';
   }
 }
+
+// ── Aviso de butacas libres (jobs en pausa) ──────────────────────────────────
+// Llamativo: banda roja fija arriba, sonido, notificación del navegador y título de la pestaña.
+const alertSeen = new Set();
+const baseTitle = document.title;
+let simAlert = null, lastAlerts = [];
+function renderAlerts(alerts) {
+  lastAlerts = alerts;
+  alerts = simAlert ? [simAlert, ...alerts] : alerts;
+  $('alerts').innerHTML = alerts.map(a => a.sim ? simAlertHtml(a) : `
+    <div class="alert-box" style="margin-top:14px">
+      <div class="alert-ico">🔔</div>
+      <div class="alert-main">
+        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo</div>
+        <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)} · ${a.showtime ? esc(`${fmtDay(a.showtime)} ${fmtTime(a.showtime)}`) : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
+        <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
+        ${a.taken?.length ? `<div class="alert-sub" style="margin-top:6px">No disponibles: ${esc(a.taken.join(', '))}</div>` : ''}
+      </div>
+      <div class="alert-actions">
+        <button class="btn btn-sm solid" onclick="pauseJob('${a.jobId}', false)" title="Quita la pausa: el bot las reserva ahora">🤖 Que las reserve el bot</button>
+        <button class="btn btn-sm" onclick="selectJob('${a.jobId}')">Ver job</button>
+        <button class="btn btn-sm" onclick="ackAlert('${a.jobId}')" title="Oculta el aviso; vuelve a avisar si cambian las butacas libres">✕ Descartar</button>
+      </div>
+    </div>`).join('');
+  document.title = alerts.length ? `🔔 ¡${alerts.length} aviso${alerts.length > 1 ? 's' : ''}! · ${baseTitle}` : baseTitle;
+  const fresh = alerts.filter(a => !alertSeen.has(`${a.jobId}|${a.at}`));
+  for (const a of fresh) alertSeen.add(`${a.jobId}|${a.at}`);
+  if (fresh.length) alertNotify(fresh);
+}
+
+// Simulador: el mismo aviso (banda, sonido, notificación y título) con datos de un job, sin tocar el servidor
+function simAlertHtml(a) {
+  return `
+    <div class="alert-box" style="margin-top:14px">
+      <div class="alert-ico">🔔</div>
+      <div class="alert-main">
+        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo <span style="font-size:.7rem;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:3px;vertical-align:middle">SIMULACIÓN</span></div>
+        <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(`${fmtDay(a.showtime)} ${fmtTime(a.showtime)}`)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
+        <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
+        <div class="alert-sub" style="margin-top:8px">Así aparecerá cuando un job <b>en pausa</b> vea sus butacas libres. Los botones reales serán: “🤖 Que las reserve el bot”, “Ver job” y “✕ Descartar”.</div>
+      </div>
+      <div class="alert-actions">
+        <button class="btn btn-sm solid" onclick="closeSimAlert()">✕ Cerrar simulación</button>
+      </div>
+    </div>`;
+}
+
+async function simulateAlert(jobId) {
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission().catch(() => {}); } catch {}
+  const j = state.jobs.find(x => x.id === jobId) || editingJob() || state.jobs.find(x => x.running) || state.jobs[0];
+  simAlert = {
+    sim: true, jobId: 'sim', at: Date.now(),
+    cinemaName: j?.cinemaName || 'CP Ejemplo', movieTitle: j?.movieTitle || 'Película de ejemplo',
+    showtime: j?.showtime || null, screenName: j?.screenName || 'Sala 1',
+    seats: j?.targetSeats?.length ? j.targetSeats.map(t => t.label) : ['F8', 'F9', 'F10', 'F11', 'F12'],
+  };
+  renderAlerts(lastAlerts);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function closeSimAlert() { simAlert = null; renderAlerts(lastAlerts); }
+
+function alertNotify(list) {
+  try {
+    const ctx = new AudioContext();
+    [0, .25, .5].forEach(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination); o.frequency.value = 988; g.gain.value = .12;
+      o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + .15);
+    });
+  } catch {}
+  try {
+    if ('Notification' in window && Notification.permission === 'granted')
+      for (const a of list) new Notification('🔔 Asientos libres', { body: `${a.cinemaName} · ${a.movieTitle}: ${a.seats.join(', ')}` });
+  } catch {}
+}
+// Pedir permiso de notificaciones al primer clic (los navegadores no dejan pedirlo sin interacción)
+document.addEventListener('click', () => {
+  try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch {}
+}, { once: true });
 
 // ── Configuración: cookies / tokens ───────────────────────────────────────────
 function toggleConfig() {

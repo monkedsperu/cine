@@ -7,6 +7,8 @@ Panel web para programar jobs que reservan y mantienen retenidas butacas de una 
 - Varios jobs, cada uno con su función, butacas, entrada y horario.
 - Espera adaptativa: mide cuánto dura la retención de las butacas y revisa poco antes de que se libere.
 - Reserva parcial: si otra persona toma alguna butaca, sigue con las que quedan libres.
+- Pausa: un job en pausa deja de reservar y avisa en el panel (banda roja, sonido y notificación) cuando sus butacas están libres, para reservarlas desde otro dispositivo.
+- Vigías de preestreno (`/preestreno`): consultan la cartelera cada pocos segundos y, cuando la película tiene funciones en los cines elegidos, eligen asientos centrales juntos en cada función y crean un job por función (el nombre empieza con el cine).
 
 ## Configuración (`.env`)
 
@@ -62,6 +64,7 @@ server.js              servidor HTTP, jobs y lógica de reserva
 ecosystem.config.js    configuración de pm2
 deploy/                config de nginx (4100 → 5100)
 public/index.html      panel
+public/preestreno.html consultar si una película ya tiene funciones (/preestreno)
 public/login.html      acceso
-data/                  jobs, contraseñas del panel e histórico (se crea solo)
+data/                  jobs, vigías, contraseñas del panel e histórico (se crea solo)
 ```
