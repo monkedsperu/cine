@@ -1142,9 +1142,35 @@ async function watcherCheck(w) {
   const sessMap = {};
   for (const s of (sc.sessions || [])) sessMap[s.id] = s;
 
+  // Jobs creados sin la hora de su función: completarla en cuanto el cine la publique
+  for (const [key, h] of Object.entries(w.handled)) {
+    const ss = sessMap[key];
+    if (h.status !== 'job' || h.showtime || !ss?.showtime) continue;
+    h.showtime = ss.showtime; h.screenName = ss.screenName || '';
+    const j = jobs.get(h.jobId);
+    if (j) {
+      j.showtime = ss.showtime; j.screenName = ss.screenName || '';
+      j.name = `${h.cinemaName} · ${shortWhen(ss.showtime)} · ${j.movieTitle}`.slice(0, 60);
+      const showAt = limaTime(ss.showtime);
+      if (showAt && !j.endAt) { j.endAt = showAt + 20 * 60000; armEndTimer(j); }
+      addLog(`Hora de la función obtenida: ${shortWhen(ss.showtime)}${ss.screenName ? ` · ${ss.screenName}` : ''}`, 'info', j);
+      saveJobs();
+    }
+    addWLog(w, `${h.cinemaName}: hora de la función completada → ${shortWhen(ss.showtime)}`);
+  }
+
   // Por cine: elegir las funciones de los primeros días (ver chooseSessions)
   const pending = [];
   for (const c of w.cinemas) {
+    // Sin la hora no se puede saber cuál es la primera ni cuál cae en el horario preferido:
+    // si alguna función de este cine aún no tiene detalle, se espera (hasta WATCH_NODETAIL_MS)
+    const noDetailYet = found.filter(f => f.cinemaId === c.id && !sessMap[f.key]
+      && !(typeof w.considered[f.key] === 'number' && w.considered[f.key] > 1 && now - w.considered[f.key] >= WATCH_NODETAIL_MS));
+    if (noDetailYet.length) {
+      w.waitNote = w.waitNote || {};
+      if (!w.waitNote[c.id]) { w.waitNote[c.id] = 1; addWLog(w, `${c.name}: ${noDetailYet.length} funciones aún sin hora publicada; se espera el detalle antes de elegir`); }
+      continue;
+    }
     const list = found.filter(f => f.cinemaId === c.id)
       .map(f => { const ss = sessMap[f.key]; return { f, s: ss, day: String(f.date).slice(0, 10), mins: ss?.showtime ? toMins(ss.showtime) : null, at: limaTime(ss?.showtime) }; })
       .filter(x => !(x.at && x.at < now))                          // ya empezó
@@ -1206,6 +1232,41 @@ const fmtHM = m => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 
 // Las horas del cine vienen sin zona ("2026-10-12T20:10:00"): son hora de Lima
 const limaTime  = iso => !iso ? null : new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : iso + '-05:00').getTime() || null;
 const shortWhen = iso => iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}` : '';
+
+// Completa la hora (y sala, fin y nombre) de jobs que no la tienen, sea cual sea su origen y aunque
+// su vigía esté detenido o eliminado. Se usa a pedido: el panel la pide al abrir un job sin hora.
+// Devuelve cuántos se completaron.
+async function backfillJobTimes(list) {
+  const missing = list.filter(j => j.cinemaId && j.sessionId && !j.showtime);
+  if (!missing.length) return 0;
+  let filled = 0;
+  try {
+    await ensureSession();
+    const sc = await cpGet('/api/v1-web/cache/sessioncache');
+    const byKey = {};
+    for (const x of (sc.sessions || [])) byKey[x.id] = x;
+    for (const j of missing) {
+      const ss = byKey[`${j.cinemaId}-${j.sessionId}`];
+      if (!ss?.showtime) continue;
+      j.showtime = ss.showtime;
+      j.screenName = j.screenName || ss.screenName || '';
+      if (j.watcherId || /^.+ · \d\d\/\d\d · /.test(j.name)) {   // nombre puesto por el vigía: con la hora
+        j.name = `${j.cinemaName || j.cinemaId} · ${shortWhen(ss.showtime)} · ${j.movieTitle}`.slice(0, 60);
+      }
+      const showAt = limaTime(ss.showtime);
+      if (showAt && !j.endAt) { j.endAt = showAt + 20 * 60000; armEndTimer(j); }
+      addLog(`Hora de la función completada: ${shortWhen(ss.showtime)}${j.screenName ? ` · ${j.screenName}` : ''}`, 'info', j);
+      filled++;
+      // Y en el registro del vigía que lo creó, si existe
+      for (const w of watchers.values()) for (const h of Object.values(w.handled || {}))
+        if (h.jobId === j.id && !h.showtime) { h.showtime = ss.showtime; h.screenName = j.screenName; saveWatchers(); }
+    }
+    saveJobs();
+  } catch (e) {
+    addLog(`No se pudo completar la hora de las funciones: ${e.message}`, 'warn');
+  }
+  return filled;
+}
 
 async function watcherSession(w, movie, f, s) {
   const cinemaName = w.cinemas.find(c => c.id === f.cinemaId)?.name || f.cinemaId;
@@ -1340,7 +1401,7 @@ function serveFile(res, rel) {
 
 function redirect(res, to) { res.writeHead(302, { Location: to }); res.end(); }
 
-const JOB_ROUTE = /^\/bot\/jobs\/([a-f0-9]+)(?:\/(start|stop|test|reserve-once|delete|pause|resume|ack))?$/;
+const JOB_ROUTE = /^\/bot\/jobs\/([a-f0-9]+)(?:\/(start|stop|test|reserve-once|delete|pause|resume|ack|fill-time))?$/;
 const WATCHER_ROUTE = /^\/bot\/watchers\/([a-f0-9]+)(?:\/(start|stop|delete))?$/;
 
 http.createServer(async (req, res) => {
@@ -1628,6 +1689,10 @@ http.createServer(async (req, res) => {
       if (action === 'stop') {
         stopJob(job);
         return json(res, 200, { ok: true });
+      }
+      if (action === 'fill-time') {          // el panel abrió un job sin hora: se consulta una vez y se guarda
+        const filled = await backfillJobTimes([job]);
+        return json(res, 200, { ok: true, filled: filled > 0, showtime: job.showtime });
       }
       if (action === 'pause')  { setPaused(job, true);  return json(res, 200, { ok: true }); }
       if (action === 'resume') { setPaused(job, false); return json(res, 200, { ok: true }); }

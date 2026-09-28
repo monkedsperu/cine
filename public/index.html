@@ -1148,10 +1148,21 @@ function showResult(res, type = 'ok') {
 }
 
 // Abrir un job del panel: carga su configuración en filtros, mapa y barra lateral
+// Jobs sin hora de función (creados por un vigía antes de que el cine la publicara): al abrirlos se
+// pide una vez al servidor; si ya está publicada queda guardada. Una sola vez por job en esta página.
+const timeAsked = new Set();
+async function fillJobTime(job) {
+  if (job.showtime || !job.sessionId || timeAsked.has(job.id)) return;
+  timeAsked.add(job.id);
+  const r = await postJ(`/bot/jobs/${job.id}/fill-time`).catch(() => null);
+  if (r?.filled) pollStatus();
+}
+
 async function selectJob(id) {
   if (state.editingJobId === id) return;
   const job = state.jobs.find(j => j.id === id);
   if (!job) return;
+  fillJobTime(job);
   state.editingJobId = id;
   $('resultBox').innerHTML = '';
   $('jobName').value     = job.name;
