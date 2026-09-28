@@ -346,16 +346,25 @@ function addLog(msg, type = 'info', job = null) {
 
 // ─── JOBS ─────────────────────────────────────────────────────────────────────
 
-const DEFAULTS = { intervalMs: 600000, retryMinMs: 10000, retryMaxMs: 20000, ticketCode: '0050' };
+const DEFAULTS = {
+  intervalMs:  600000,   // sin mediciones: revisión objetivo tras reservar
+  retryMinMs:  10000,    // reintentos rápidos (tras un fallo, o pasada la retención máxima observada)
+  retryMaxMs:  20000,
+  baselineMs:  60000,    // revisión complementaria mientras dura la retención (0 = desactivada)
+  windowMinMs: 30000,    // ritmo dentro de la ventana probable de liberación
+  windowMaxMs: 60000,
+  ticketCode:  '0050',
+};
 
 // Campos de configuración que el panel puede fijar
 const CONFIG_KEYS = ['name', 'cinemaId', 'cinemaName', 'movieId', 'movieTitle', 'posterUrl', 'sessionId',
   'showtime', 'screenName', 'day', 'ticketCode', 'ticketDesc', 'targetSeats',
-  'intervalMs', 'retryMinMs', 'retryMaxMs', 'endAt', 'adaptive'];
+  'intervalMs', 'retryMinMs', 'retryMaxMs', 'baselineMs', 'windowMinMs', 'windowMaxMs', 'endAt', 'adaptive'];
 
 // Estado persistido además de la configuración
 const STATE_KEYS = ['id', 'createdAt', 'userSessionId', 'running', 'attempts', 'successes', 'lastResult', 'history',
-  'heldSeats', 'lastReservedAt', 'cycle', 'holdSamples', 'holdHint', 'seatState'];
+  'heldSeats', 'lastReservedAt', 'cycle', 'holdSamples', 'holdHint', 'seatState',
+  'uidReservations', 'orderExpiryInfo', 'expiryChecked'];
 
 const HOLD_MAX_MS     = 60 * 60 * 1000;  // pasado esto, butacas ocupadas ya no se asumen como retención propia
 const HOLD_SAMPLES    = 5;               // mediciones de retención que se recuerdan por job
@@ -372,14 +381,18 @@ function newJob(cfg = {}) {
     sessionId: null, showtime: null, screenName: '', day: null,
     ticketCode: DEFAULTS.ticketCode, ticketDesc: '', targetSeats: [],
     intervalMs: DEFAULTS.intervalMs, retryMinMs: DEFAULTS.retryMinMs, retryMaxMs: DEFAULTS.retryMaxMs,
+    baselineMs: DEFAULTS.baselineMs, windowMinMs: DEFAULTS.windowMinMs, windowMaxMs: DEFAULTS.windowMaxMs,
     endAt: null, adaptive: true,
     running: false, mode: 'normal', nextAt: null, busy: false,
     attempts: 0, successes: 0, lastResult: null, history: [],
     heldSeats:      [],     // etiquetas reservadas en la última reserva exitosa (retención propia)
     lastReservedAt: null,   // ms de esa reserva
-    cycle:          null,   // vuelta actual: { reservedAt, plan, step, sawOccupied, lastOccupiedAt, measured, retrying }
-    holdSamples:    [],     // mediciones reales de la retención: { ms, loMs, hiMs, at }
+    cycle:          null,   // vuelta actual: { reservedAt, newOrder, orderSeq, expiresAt, sawOccupied, lastOccupiedAt, measured, phase }
+    holdSamples:    [],     // mediciones reales de la retención: { ms, loMs, hiMs, at, newOrder, orderSeq }
     holdHint:       null,   // estimación de un solo uso (ms): la retención duró menos de esto
+    uidReservations: 0,     // reservas hechas con el userSessionId actual (0 → la próxima abre una orden nueva)
+    orderExpiryInfo: null,  // campos de vencimiento encontrados en la última respuesta de reserva
+    expiryChecked:  false,  // ya se registró en consola si la respuesta trae vencimiento
     seatState:      {},     // etiqueta → 'held' | 'free' | 'taken' en la última comprobación
     timer: null, endTimer: null,
   };
@@ -402,6 +415,10 @@ function applyConfig(job, b) {
   job.endAt      = job.endAt ? (new Date(job.endAt).getTime() || null) : null;
   job.targetSeats = Array.isArray(job.targetSeats) ? job.targetSeats : [];
   job.adaptive   = job.adaptive !== false;
+  const bl = parseInt(job.baselineMs);
+  job.baselineMs  = bl === 0 ? 0 : Math.max(10000, bl || DEFAULTS.baselineMs);
+  job.windowMinMs = Math.max(5000, parseInt(job.windowMinMs) || DEFAULTS.windowMinMs);
+  job.windowMaxMs = Math.max(job.windowMinMs, parseInt(job.windowMaxMs) || job.windowMinMs);
   // Otra función → la retención aprendida ya no aplica; otros asientos → la retención actual tampoco.
   // En ambos casos, orden nueva (otro userSessionId): el cine acumula las entradas en la orden del
   // userSessionId, así que con el mismo id las butacas nuevas se sumarían a las de la reserva anterior.
@@ -410,37 +427,138 @@ function applyConfig(job, b) {
     const hadHold = job.heldSeats?.length > 0;
     if (job.sessionId !== prevSession) { job.holdSamples = []; job.holdHint = null; }
     resetHold(job);
-    job.userSessionId = genSessionId();
+    newOrder(job);
     if (hadHold) addLog('Butacas o función cambiadas: se usará una orden nueva; la retención anterior se liberará sola', 'info', job);
   }
   if (job.running) armEndTimer(job);
 }
 
-// Retención aprendida: la menor de las últimas mediciones reales (más vale revisar antes que tarde)
-function learnedHold(job) {
-  return job.holdSamples?.length ? Math.min(...job.holdSamples.map(x => x.ms)) : null;
+// Orden nueva en el cine: otro userSessionId (las entradas se acumulan por userSessionId)
+function newOrder(job) {
+  job.userSessionId   = genSessionId();
+  job.uidReservations = 0;
 }
 
-// Puntos de revisión tras reservar (ms desde la reserva). Con una retención H conocida o estimada:
-// a la mitad, faltando un tercio, faltando un cuarto y faltando 20 s; después, reintentos aleatorios.
-// Sin H (o sin espera adaptativa): una sola revisión al cumplirse el intervalo fijo.
-function checkPlan(job) {
-  const known = [learnedHold(job), job.holdHint].filter(Boolean);
-  if (!job.adaptive || !known.length) return [job.intervalMs];
-  const H = Math.min(...known);
-  const plan = [];
-  for (const p of [H / 2, H * 2 / 3, H * 3 / 4, H - 20000].map(Math.round)) {
-    if (p >= 5000 && (!plan.length || p - plan[plan.length - 1] >= 5000)) plan.push(p);
+// Mediciones relevantes para una vuelta: las del mismo contexto (orden nueva o no) si hay al menos 2,
+// si no todas. Así, si la primera reserva de una orden dura distinto que las siguientes, se separan.
+function relevantSamples(job, isNewOrder) {
+  const all  = job.holdSamples || [];
+  const same = all.filter(x => x.newOrder === isNewOrder);
+  return isNewOrder != null && same.length >= 2 ? same : all;
+}
+
+// Retención aprendida (para mostrar): la menor de las mediciones relevantes
+function learnedHold(job, isNewOrder = null) {
+  const s = relevantSamples(job, isNewOrder);
+  return s.length ? Math.min(...s.map(x => x.ms)) : null;
+}
+
+// Plan de revisiones mientras dura la retención (tiempos en ms desde la reserva):
+//  - 'expiry':   el cine informó el vencimiento → revisar justo antes (vencimiento − 20 s)
+//  - 'range':    hay mediciones → puntos a ½, ⅔ y ¾ del mínimo; ventana probable [mín − 20 s, máx]
+//                revisando cada windowMin–windowMax; pasado el máximo, reintentos rápidos
+//  - 'interval': sin datos → revisar al cumplirse el intervalo y después reintentos rápidos
+// En todos los casos, antes de la ventana se revisa además cada baselineMs (complementaria).
+function holdSchedule(job, cycle) {
+  const base = { baselineMs: job.baselineMs };
+  if (cycle?.expiresAt) {
+    return { ...base, mode: 'expiry', target: Math.max(5000, cycle.expiresAt - cycle.reservedAt - 20000) };
   }
-  return plan.length ? plan : [Math.max(5000, Math.round(H / 2))];
+  const isNew   = cycle ? cycle.newOrder : job.uidReservations === 0;
+  const samples = relevantSamples(job, isNew);
+  let lo = samples.length ? Math.min(...samples.map(x => x.ms)) : null;
+  const hi = samples.length ? Math.max(...samples.map(x => x.ms)) : null;
+  if (job.holdHint && (lo == null || job.holdHint < lo)) lo = job.holdHint;   // estimación de un solo uso
+  if (!job.adaptive || lo == null) return { ...base, mode: 'interval', target: job.intervalMs };
+  const windowStart = Math.max(5000, lo - 20000);
+  return {
+    ...base, mode: 'range', minMs: lo, maxMs: Math.max(hi || lo, lo),
+    points: [lo / 2, lo * 2 / 3, lo * 3 / 4].map(Math.round).filter(p => p >= 5000 && p < windowStart),
+    windowStart, windowEnd: Math.max(hi || lo, lo),
+  };
+}
+
+const randBetween = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+
+// Espera hasta la próxima revisión de una vuelta en retención; registra en consola los cambios de fase
+function holdDelay(job) {
+  const c   = job.cycle;
+  const sch = holdSchedule(job, c);
+  const e   = Date.now() - c.reservedAt;
+  const baseline = sch.baselineMs > 0 ? Math.round(sch.baselineMs * (0.9 + Math.random() * 0.2)) : Infinity;
+  const fmt = ms => (ms / 60000).toFixed(1);
+  let phase, d;
+  if (sch.mode === 'range') {
+    if (e < sch.windowStart - 500) {
+      phase = 'before';
+      const next = sch.points.find(p => p > e + 500);
+      d = Math.min(next != null ? next - e : Infinity, baseline, sch.windowStart - e);
+    } else if (e < sch.windowEnd) {
+      phase = 'window';
+      d = Math.min(randBetween(job.windowMinMs, job.windowMaxMs), baseline);
+    } else {
+      phase = 'after';
+      d = randomRetry(job);
+    }
+  } else {
+    if (e < sch.target - 500) { phase = 'before'; d = Math.min(baseline, sch.target - e); }
+    else                      { phase = 'after';  d = randomRetry(job); }
+  }
+  if (phase !== c.phase && c.phase) {
+    const range = `${job.retryMinMs / 1000}-${job.retryMaxMs / 1000}s`;
+    if (phase === 'window') addLog(`Ventana probable de liberación (${fmt(sch.windowStart)}–${fmt(sch.windowEnd)} min): revisando cada ${job.windowMinMs / 1000}-${job.windowMaxMs / 1000}s`, 'info', job);
+    if (phase === 'after')  addLog(sch.mode === 'range'
+      ? `Superó la retención máxima observada (${fmt(sch.windowEnd)} min): reintentando cada ${range}`
+      : `Sigue retenida tras la revisión objetivo: reintentando cada ${range}`, 'info', job);
+  }
+  c.phase = phase;
+  return Math.max(1000, Math.round(d));
+}
+
+// Texto del plan para la consola
+function scheduleText(job, sch) {
+  const fmt = ms => (ms / 60000).toFixed(1);
+  const base = sch.baselineMs > 0 ? `revisión complementaria cada ${sch.baselineMs / 1000}s; ` : '';
+  const fast = `${job.retryMinMs / 1000}-${job.retryMaxMs / 1000}s`;
+  if (sch.mode === 'expiry') return `${base}vencimiento informado por el cine: revisión a los ${fmt(sch.target)} min; luego cada ${fast}`;
+  if (sch.mode === 'interval') return `${base}revisión a los ${fmt(sch.target)} min (sin mediciones aún); luego cada ${fast}`;
+  return `${base}${sch.points.length ? `puntos a los ${sch.points.map(fmt).join(', ')} min; ` : ''}`
+    + `ventana probable ${fmt(sch.windowStart)}–${fmt(sch.windowEnd)} min cada ${job.windowMinMs / 1000}-${job.windowMaxMs / 1000}s; luego cada ${fast}`;
+}
+
+// Busca en la respuesta de la reserva campos de vencimiento (nombre con expir/timeout/…).
+// Devuelve los campos encontrados y, si alguno es una fecha u otro valor usable, la hora de vencimiento.
+function findExpiry(obj) {
+  const fields = [];
+  let expiresAt = null;
+  const now = Date.now();
+  const walk = (o, p, depth) => {
+    if (!o || typeof o !== 'object' || depth > 6) return;
+    for (const [k, v] of Object.entries(o)) {
+      const path = p ? `${p}.${k}` : k;
+      if (v && typeof v === 'object') { walk(v, path, depth + 1); continue; }
+      if (!/expir|timeout|time.?left|remaining|until|vence/i.test(k) || v == null || v === '') continue;
+      fields.push(`${path}=${String(v).slice(0, 40)}`);
+      if (expiresAt) continue;
+      if (typeof v === 'string' && isNaN(Number(v))) {
+        const t = Date.parse(v);
+        if (t > now && t < now + 3 * 3600 * 1000) expiresAt = t;
+      } else if (/second|seg/i.test(k) && Number(v) >= 30 && Number(v) <= 7200) expiresAt = now + Number(v) * 1000;
+      else if (/minute|min/i.test(k) && Number(v) >= 1 && Number(v) <= 180) expiresAt = now + Number(v) * 60000;
+    }
+  };
+  walk(obj, '', 0);
+  return { fields: fields.slice(0, 8), expiresAt };
 }
 
 function publicJob(job, historyLimit = 100) {
   const out = {};
   for (const k of [...CONFIG_KEYS, ...STATE_KEYS, 'mode', 'nextAt', 'busy']) out[k] = job[k];
   out.history = job.history.slice(0, historyLimit);
+  const active = job.cycle && !job.cycle.measured && job.heldSeats?.length ? job.cycle : null;
   out.learnedHoldMs = learnedHold(job);
-  out.nextPlanMs    = checkPlan(job);   // plan que se usará tras la próxima reserva
+  out.schedule      = holdSchedule(job, active);   // vuelta en curso, o la que empezará tras la próxima reserva
+  out.scheduleActive = !!active;
   return out;
 }
 
@@ -515,10 +633,13 @@ async function attemptReserve(job, dryRun = false) {
         // Medición real: se liberó entre la última revisión en que seguía ocupada y esta
         const lo = c.lastOccupiedAt - c.reservedAt;
         const ms = Math.round((lo + elapsed) / 2);
-        holdInfo = { holdMs: ms, holdLoMs: lo, holdHiMs: elapsed };
-        job.holdSamples = [...(job.holdSamples || []), { ms, loMs: lo, hiMs: elapsed, at: now }].slice(-HOLD_SAMPLES);
+        holdInfo = { holdMs: ms, holdLoMs: lo, holdHiMs: elapsed, holdNewOrder: !!c.newOrder, holdOrderSeq: c.orderSeq || null };
+        job.holdSamples = [...(job.holdSamples || []),
+          { ms, loMs: lo, hiMs: elapsed, at: now, newOrder: !!c.newOrder, orderSeq: c.orderSeq || null }].slice(-HOLD_SAMPLES);
         job.holdHint = null;
-        addLog(`Retención liberada tras ~${min(ms)} (entre ${min(lo)} y ${min(elapsed)})`, 'info', job);
+        const ctx = c.newOrder ? 'orden nueva' : `misma orden, reserva nº ${c.orderSeq}`;
+        addLog(`Retención liberada tras ~${min(ms)} (entre ${min(lo)} y ${min(elapsed)}; ${ctx})`, 'info', job);
+        if (c.expiresAt) addLog(`Vencimiento informado por el cine: ${min(c.expiresAt - c.reservedAt)}; liberación medida: ~${min(ms)}`, 'info', job);
       } else {
         // Ya estaba libre en la primera revisión: solo se sabe que duró menos. No es una medición;
         // se usa como estimación para la próxima vuelta, que revisará antes y la medirá bien.
@@ -557,7 +678,7 @@ async function attemptReserve(job, dryRun = false) {
       if (!(e.status >= 500)) throw e;
       addLog(`${e.message}`, 'error', job);
       addLog('Error del servidor del cine: renovando sesión y userSessionId, y reintentando...', 'warn', job);
-      job.userSessionId = genSessionId();
+      newOrder(job);
       await initSession(true);
       result = await addTickets(job, area, free);
     }
@@ -572,8 +693,18 @@ async function attemptReserve(job, dryRun = false) {
       job.successes++;
       job.heldSeats      = labels(free);
       job.lastReservedAt = Date.now();
-      job.cycle          = { reservedAt: job.lastReservedAt, plan: checkPlan(job), step: 0,
-                             sawOccupied: false, lastOccupiedAt: null, measured: false, retrying: false };
+      const isNewOrder   = (job.uidReservations || 0) === 0;
+      job.uidReservations = (job.uidReservations || 0) + 1;
+      const exp = findExpiry(result);
+      job.orderExpiryInfo = exp.fields.length ? { fields: exp.fields, at: job.lastReservedAt, usable: !!exp.expiresAt } : null;
+      if (!job.expiryChecked || exp.fields.length) {
+        addLog(exp.fields.length
+          ? `Respuesta de la reserva con datos de vencimiento: ${exp.fields.join(', ')}${exp.expiresAt ? '' : ' (no se pudo interpretar como hora)'}`
+          : 'La respuesta de la reserva no trae hora de vencimiento: se usa la retención medida', 'info', job);
+        job.expiryChecked = true;
+      }
+      job.cycle = { reservedAt: job.lastReservedAt, newOrder: isNewOrder, orderSeq: job.uidReservations,
+                    expiresAt: exp.expiresAt, sawOccupied: false, lastOccupiedAt: null, measured: false, phase: null };
       for (const t of free) job.seatState[t.label] = 'held';
       addLog(taken.length
         ? `✅ RESERVA PARCIAL: ${reserved} | S/.${total} · no disponibles: ${labels(taken).join(', ')}`
@@ -647,6 +778,8 @@ async function doReserve(job, dryRun, source) {
     holdMs:   r.holdMs || null,   // retención medida si se liberó en este intento (con su rango)
     holdLoMs: r.holdLoMs ?? null,
     holdHiMs: r.holdHiMs ?? null,
+    holdNewOrder: r.holdNewOrder ?? null,
+    holdOrderSeq: r.holdOrderSeq ?? null,
     nextInMs: null,
   });
   if (job.history.length > 500) job.history.pop();
@@ -654,8 +787,8 @@ async function doReserve(job, dryRun, source) {
   return r;
 }
 
-// Tras reservar: revisiones en los puntos del plan (checkPlan). Si la retención sigue activa al
-// agotarse el plan, o si un intento falla: reintentos aleatorios entre retryMin y retryMax.
+// Mientras dura la retención de una reserva: revisiones según holdSchedule/holdDelay.
+// Tras un fallo (o sin retención que vigilar): reintentos aleatorios entre retryMin y retryMax.
 async function runTick(job) {
   if (!job.running) return;
   job.nextAt = null;
@@ -663,20 +796,10 @@ async function runTick(job) {
   if (!job.running) return;
 
   const range = `${job.retryMinMs / 1000}-${job.retryMaxMs / 1000}s`;
-  const min   = ms => (ms / 60000).toFixed(1);
   const c     = job.cycle;
-  let delay;
-  if ((r.success || r.holdActive) && c?.plan && c.step < c.plan.length) {
-    // Siguiente punto del plan, contado desde la reserva
-    delay = Math.max(1000, c.reservedAt + c.plan[c.step] - Date.now());
-    c.step++;
-  } else {
-    delay = randomRetry(job);
-    if (r.holdActive && c && !c.retrying) {
-      c.retrying = true;
-      addLog(`Sigue retenida tras la última revisión programada; reintentando cada ${range} hasta que se libere`, 'info', job);
-    }
-  }
+  const inHold = (r.success || r.holdActive) && c && !c.measured;
+  if (r.success && c) c.phase = null;
+  const delay = inHold ? holdDelay(job) : randomRetry(job);
 
   if (!r.skipped) {
     const mode = r.success ? 'normal' : r.holdActive ? 'hold' : 'retry';
@@ -684,12 +807,7 @@ async function runTick(job) {
       if (mode === 'retry') addLog(`Reserva fallida; reintentando cada ${range}`, 'warn', job);
       if (mode === 'normal' && job.mode === 'retry') addLog('Reserva recuperada', 'info', job);
     }
-    if (r.success && c?.plan) {
-      const adaptivePlan = job.adaptive && (learnedHold(job) || job.holdHint);
-      addLog(adaptivePlan
-        ? `Revisiones programadas a los ${c.plan.map(min).join(', ')} min; si sigue retenida, cada ${range}`
-        : `Próxima revisión en ${min(delay)} min (intervalo fijo)`, 'info', job);
-    }
+    if (r.success && c) addLog(`Plan (${c.newOrder ? 'orden nueva' : `misma orden, reserva nº ${c.orderSeq}`}): ${scheduleText(job, holdSchedule(job, c))}`, 'info', job);
     job.mode = mode;
     job.history[0].nextInMs = delay;
   }
@@ -711,10 +829,7 @@ function startJob(job, resumed = false) {
   job.mode    = 'normal';
   if (!resumed) { job.attempts = 0; job.successes = 0; }
   const fin = job.endAt ? ` hasta las ${new Date(job.endAt).toLocaleTimeString('es-PE', { timeZone: 'America/Lima' })}` : '';
-  const plan   = checkPlan(job);
-  const espera = plan.length > 1 || (job.adaptive && (learnedHold(job) || job.holdHint))
-    ? `revisiones a los ${plan.map(ms => (ms / 60000).toFixed(1)).join(', ')} min` : `revisión a los ${job.intervalMs / 1000}s`;
-  addLog(`${resumed ? 'Job reanudado' : 'Job iniciado'}: ${espera} tras reservar, reintento ${job.retryMinMs / 1000}-${job.retryMaxMs / 1000}s si falla${fin}`, 'info', job);
+  addLog(`${resumed ? 'Job reanudado' : 'Job iniciado'}${fin}. Tras reservar: ${scheduleText(job, holdSchedule(job, null))}`, 'info', job);
   armEndTimer(job);
   runTick(job);   // primer intento inmediato
   saveJobs();
@@ -749,6 +864,7 @@ for (const saved of readData('jobs.json', [])) {
   // Solo mediciones reales en formato objeto; los números de versiones anteriores mezclaban estimaciones
   job.holdSamples = (Array.isArray(job.holdSamples) ? job.holdSamples : []).filter(x => x && typeof x === 'object' && x.ms > 0);
   job.seatState   = job.seatState || {};
+  job.uidReservations = job.uidReservations || 0;
   jobs.set(job.id, job);
 }
 

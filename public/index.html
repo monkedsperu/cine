@@ -126,8 +126,18 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .role { font-size: .72rem; font-weight: 500; padding: 3px 8px; border-radius: 3px; background: rgba(143,95,232,.12); color: var(--purple); }
 
 /* ── Panel de configuración ── */
-.config-panel { background: var(--card); border-bottom: 1px solid var(--border); padding: 0 24px 20px; display: none; }
-.config-panel.open { display: block; }
+/* ── Modal de configuración ── */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 50; background: rgba(24,24,36,.55);
+  display: none; align-items: flex-start; justify-content: center; padding: 60px 16px 16px; overflow-y: auto;
+}
+.modal-backdrop.open { display: flex; }
+.modal { background: var(--card); border-radius: 8px; width: 100%; max-width: 1000px; box-shadow: 0 20px 60px rgba(0,0,0,.3); }
+.modal-head { display: flex; align-items: center; padding: 16px 24px 0; }
+.modal-head .card-title { flex: 1; }
+.modal-close { border: none; background: none; font-size: 1.4rem; line-height: 1; color: var(--muted); cursor: pointer; padding: 4px 8px; border-radius: 4px; }
+.modal-close:hover { color: var(--text); background: #f3f4f9; }
+.modal-body { padding: 0 24px 22px; }
 .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
 .tab { padding: 12px 14px; font-size: .85rem; color: var(--muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .tab.active { color: var(--purple); border-bottom-color: var(--purple); font-weight: 500; }
@@ -267,7 +277,7 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .badge-orange{ background: var(--orange); }
 
 /* ── Inferior: detalles + consola ── */
-.bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px; align-items: start; }
 .job-table { width: 100%; border-collapse: collapse; }
 .job-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: .83rem; vertical-align: top; }
 .job-table tr:last-child td { border-bottom: none; }
@@ -276,6 +286,11 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .mono { font-family: 'Roboto Mono', monospace; font-size: .76rem; }
 
 .console-card { display: flex; flex-direction: column; background: var(--side); }
+.console-card .card-head { cursor: pointer; user-select: none; }
+.console-toggle { color: var(--side-muted); font-size: .8rem; width: 14px; }
+.console-preview { flex: 1; min-width: 0; font-family: 'Roboto Mono', monospace; font-size: .72rem; color: var(--side-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.console-card.collapsed .console { display: none; }
+.console-card:not(.collapsed) .console-preview { display: none; }
 .console-card .card-title { color: #fff; }
 .console-card .card-sub { color: var(--side-muted); }
 .console { flex: 1; min-height: 300px; max-height: 440px; overflow-y: auto; padding: 4px 20px 16px; font-family: 'Roboto Mono', monospace; font-size: .74rem; line-height: 1.6; }
@@ -289,7 +304,9 @@ aside input:focus { outline: none; border-color: var(--purple); }
 
 /* ── Histórico ── */
 .hist-card { display: flex; flex-direction: column; }
-.hist-wrap { max-height: 360px; overflow: auto; }
+.hist-wrap { max-height: 560px; overflow: auto; }
+.hist-src { display: block; font-size: .7rem; color: var(--muted); margin-top: 3px; }
+.hist-hold { display: block; font-size: .74rem; color: var(--muted); margin-top: 3px; }
 .hist-table { width: 100%; border-collapse: collapse; }
 .hist-table th {
   text-align: left; font-size: .75rem; font-weight: 500; color: var(--muted); padding: 10px 20px;
@@ -348,12 +365,20 @@ aside input:focus { outline: none; border-color: var(--purple); }
 
   <div class="side-sec">
     <div class="side-head">Automatización</div>
-    <div class="side-label" style="margin-top:0">Intervalo tras reservar (segundos)</div>
-    <input type="number" id="intervalSec" value="600" min="5" max="86400">
-    <label class="check-row" title="Mide cuánto retiene el cine las butacas (H) y tras cada reserva revisa a H/2, 2H/3, 3H/4 y H−20 s; si sigue retenida, usa los reintentos. Hasta medirla, revisa al cumplirse el intervalo.">
-      <input type="checkbox" id="adaptive" checked> Espera adaptativa: revisa a ½, ⅔, ¾ y H−20 s de la retención medida
+    <label class="check-row" style="margin-top:0" title="Mide cuánto retiene el cine las butacas y aprende el rango (mínimo–máximo). Antes del mínimo revisa poco; dentro del rango, más seguido; pasado el máximo, reintentos rápidos. Si el cine informa la hora de vencimiento, usa esa hora.">
+      <input type="checkbox" id="adaptive" checked> Espera adaptativa (aprende el rango de retención)
     </label>
-    <div class="side-label">Reintento si falla: aleatorio entre (segundos)</div>
+    <div class="side-label">Sin mediciones aún: revisar a los (segundos)</div>
+    <input type="number" id="intervalSec" value="600" min="5" max="86400">
+    <div class="side-label">Revisión complementaria cada (segundos, 0 = no)</div>
+    <input type="number" id="baselineSec" value="60" min="0" max="3600">
+    <div class="side-label">Ventana probable de liberación: revisar entre (segundos)</div>
+    <div class="pair">
+      <input type="number" id="winMin" value="30" min="5" max="3600">
+      <span>y</span>
+      <input type="number" id="winMax" value="60" min="5" max="3600">
+    </div>
+    <div class="side-label">Reintento rápido (tras un fallo o pasada la retención máxima)</div>
     <div class="pair">
       <input type="number" id="retryMin" value="10" min="5" max="3600">
       <span>y</span>
@@ -383,8 +408,14 @@ aside input:focus { outline: none; border-color: var(--purple); }
     </div>
   </header>
 
-  <!-- ═══════════════ CONFIGURACIÓN ═══════════════ -->
-  <section class="config-panel" id="configPanel">
+  <!-- ═══════════════ CONFIGURACIÓN (modal) ═══════════════ -->
+  <div class="modal-backdrop" id="configModal" onclick="if (event.target === this) closeConfig()">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="configTitle">
+    <div class="modal-head">
+      <div class="card-title" id="configTitle">Configuración</div>
+      <button class="modal-close" title="Cerrar" onclick="closeConfig()">×</button>
+    </div>
+    <div class="modal-body">
     <div class="tabs">
       <button class="tab active" data-tab="tabCookies" onclick="showTab('tabCookies')">Cookies y tokens</button>
       <button class="tab" data-tab="tabPasswords" id="tabPasswordsBtn" onclick="showTab('tabPasswords')" style="display:none">Contraseñas de acceso</button>
@@ -437,7 +468,9 @@ aside input:focus { outline: none; border-color: var(--purple); }
       </div>
       <div class="config-msg" id="pwMsg"></div>
     </div>
+    </div>
   </section>
+  </div>
 
   <div class="content">
 
@@ -499,7 +532,7 @@ aside input:focus { outline: none; border-color: var(--purple); }
       <div id="jobsGrid"></div>
     </div>
 
-    <!-- ═══════════════ DETALLES + CONSOLA ═══════════════ -->
+    <!-- ═══════════════ DETALLES + HISTÓRICO ═══════════════ -->
     <div class="bottom-grid">
       <div class="card">
         <div class="card-head orange">
@@ -508,16 +541,7 @@ aside input:focus { outline: none; border-color: var(--purple); }
         </div>
         <table class="job-table"><tbody id="jobTable"></tbody></table>
       </div>
-      <div class="card console-card">
-        <div class="card-head">
-          <div class="card-title">Consola</div>
-          <div class="card-sub">todos los jobs</div>
-        </div>
-        <div class="console" id="logBox"></div>
-      </div>
-    </div>
 
-    <!-- ═══════════════ HISTÓRICO ═══════════════ -->
     <div class="card hist-card" id="histCard">
       <div class="card-head">
         <div class="card-title">Histórico de intentos</div>
@@ -528,10 +552,22 @@ aside input:focus { outline: none; border-color: var(--purple); }
       </div>
       <div class="hist-wrap">
         <table class="hist-table">
-          <thead><tr><th>Hora</th><th>Job</th><th>Origen</th><th>Resultado</th><th>Detalle</th><th>Retención</th><th>Siguiente intento</th></tr></thead>
+          <thead><tr><th>Hora</th><th>Job</th><th>Resultado</th><th>Detalle</th><th>Siguiente</th></tr></thead>
           <tbody id="histRows"></tbody>
         </table>
       </div>
+    </div>
+    </div>
+
+    <!-- ═══════════════ CONSOLA (plegable, minimizada por defecto) ═══════════════ -->
+    <div class="card console-card collapsed" id="consoleCard">
+      <div class="card-head" onclick="toggleConsole()">
+        <span class="console-toggle" id="consoleToggle">▸</span>
+        <div class="card-title">Consola</div>
+        <div class="console-preview" id="consolePreview"></div>
+        <div class="card-sub">todos los jobs</div>
+      </div>
+      <div class="console" id="logBox"></div>
     </div>
 
   </div>
@@ -592,6 +628,9 @@ const editingJob = () => state.jobs.find(j => j.id === state.editingJobId) || nu
 // ── Init ──────────────────────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   initDaySelect();
+  let consoleOpen = false;
+  try { consoleOpen = localStorage.getItem('consoleOpen') === '1'; } catch {}
+  setConsole(consoleOpen);
   renderMovieDD();
   resetFrom('movie');
   updateEndHint();
@@ -605,7 +644,7 @@ document.addEventListener('click', e => {
   if (!e.target.closest('.mdd')) closeMovieDD();
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeMovieDD(); if ($('histCard').classList.contains('expanded')) toggleHistoryExpand(); }
+  if (e.key === 'Escape') { closeMovieDD(); closeConfig(); if ($('histCard').classList.contains('expanded')) toggleHistoryExpand(); }
 });
 
 // ── Filtros: cine ─────────────────────────────────────────────────────────────
@@ -912,6 +951,7 @@ function updateEndHint() {
 function editorConfig() {
   const s = state.sel;
   let rmin = parseInt($('retryMin').value) || 10, rmax = parseInt($('retryMax').value) || 20;
+  const wmin = parseInt($('winMin').value) || 30, wmax = parseInt($('winMax').value) || 60;
   if (rmin > rmax) [rmin, rmax] = [rmax, rmin];
   const defName = s.movieTitle ? `${s.movieTitle}${s.showtime ? ' ' + fmtTime(s.showtime) : ''}` : '';
   return {
@@ -931,6 +971,9 @@ function editorConfig() {
     intervalMs:  (parseInt($('intervalSec').value) || 600) * 1000,
     retryMinMs:  rmin * 1000,
     retryMaxMs:  rmax * 1000,
+    baselineMs:  Math.max(0, parseInt($('baselineSec').value) || 0) * 1000,
+    windowMinMs: Math.min(wmin, wmax) * 1000,
+    windowMaxMs: Math.max(wmin, wmax) * 1000,
     adaptive:    $('adaptive').checked,
     endAt:       endAtFromInput(),
   };
@@ -1068,6 +1111,9 @@ async function selectJob(id) {
   $('retryMin').value    = job.retryMinMs / 1000;
   $('retryMax').value    = job.retryMaxMs / 1000;
   $('adaptive').checked  = job.adaptive !== false;
+  $('baselineSec').value = (job.baselineMs ?? 60000) / 1000;
+  $('winMin').value      = (job.windowMinMs || 30000) / 1000;
+  $('winMax').value      = (job.windowMaxMs || 60000) / 1000;
   $('endTime').value     = job.endAt ? toLocalInput(job.endAt) : '';
   updateEndHint();
   renderEditor(); renderJobs(); renderJob();
@@ -1112,29 +1158,39 @@ function seatChips(j) {
 }
 
 // Texto de la espera tras reservar: adaptativa (con la retención medida) o intervalo fijo
-const fmtMins = list => list.map(ms => (ms / 60000).toFixed(1)).join(' · ') + ' min';
+const fmtM = ms => (ms / 60000).toFixed(1);
 
-// Texto corto de la espera tras reservar: plan de revisiones (adaptativa) o intervalo fijo
+// Texto corto del plan tras reservar (tarjeta del job)
 function waitText(j) {
-  const plan = j.nextPlanMs || [];
-  if (plan.length > 1 || (j.adaptive && (j.learnedHoldMs || j.holdHint))) return `revisa a los ${fmtMins(plan)}`;
-  return `revisa a los ${j.intervalMs / 1000} s${j.adaptive ? ' (hasta medir la retención)' : ''}`;
+  const sch = j.schedule || {};
+  if (sch.mode === 'expiry') return `vence a los ${fmtM(sch.target + 20000)} min (informado por el cine)`;
+  if (sch.mode === 'range')  return `ventana probable ${fmtM(sch.windowStart)}–${fmtM(sch.windowEnd)} min`;
+  return `revisa a los ${fmtM(sch.target || j.intervalMs)} min${j.adaptive ? ' (sin mediciones aún)' : ''}`;
 }
 
-// Plan de la vuelta actual con lo ya revisado marcado; si no hay vuelta en curso, el próximo plan
+// Plan de revisiones por fases; con una vuelta en curso marca la fase actual
 function planHtml(j) {
-  const c = j.cycle;
-  const range = `${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s`;
-  if (c?.plan && !c.measured && j.heldSeats?.length) {
-    const pts = c.plan.map((ms, i) => {
-      const t = `${(ms / 60000).toFixed(1)} min`;
-      return c.retrying || i < c.step - 1 ? `<span style="color:var(--muted)">✓ ${t}</span>`
-           : i === c.step - 1 ? `<b>▸ ${t}</b>` : t;
-    });
-    const tail = c.retrying ? `<b>▸ cada ${range}</b>` : `luego cada ${range}`;
-    return `${pts.join(' · ')} · ${tail} <span style="color:var(--muted)">(vuelta actual, desde la reserva de las ${fmtTime(c.reservedAt)})</span>`;
+  const sch = j.schedule || {};
+  const c   = j.cycle;
+  const fast = `cada ${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s`;
+  const base = sch.baselineMs > 0 ? `cada ${sch.baselineMs / 1000} s` : '';
+  const phases = [];
+  if (sch.mode === 'range') {
+    const pts = sch.points?.length ? `puntos a los ${sch.points.map(fmtM).join(' · ')} min` : '';
+    phases.push(['before', `Hasta ${fmtM(sch.windowStart)} min: ${[base, pts].filter(Boolean).join(' + ') || 'sin revisiones'}`]);
+    phases.push(['window', `${fmtM(sch.windowStart)}–${fmtM(sch.windowEnd)} min (ventana probable): cada ${j.windowMinMs / 1000}–${j.windowMaxMs / 1000} s`]);
+    phases.push(['after',  `Después: ${fast}`]);
+  } else {
+    const what = sch.mode === 'expiry' ? 'vencimiento informado por el cine − 20 s' : 'sin mediciones aún';
+    phases.push(['before', `Hasta ${fmtM(sch.target)} min (${what})${base ? ': ' + base : ''}`]);
+    phases.push(['after',  `Después: ${fast}`]);
   }
-  return `${fmtMins(j.nextPlanMs || [])} tras reservar · luego cada ${range} <span style="color:var(--muted)">(próxima vuelta)</span>`;
+  const cur = j.scheduleActive ? c?.phase : null;
+  const html = phases.map(([k, t]) => k === cur ? `<b>▸ ${t}</b>` : t).join('<br>');
+  const ctx = j.scheduleActive && c
+    ? `vuelta actual desde las ${fmtTime(c.reservedAt)} · ${c.newOrder ? 'orden nueva' : `misma orden, reserva nº ${c.orderSeq}`}`
+    : 'próxima vuelta, tras reservar';
+  return `${html}<br><span style="color:var(--muted);font-size:.78rem">${ctx}</span>`;
 }
 
 function nextText(j) {
@@ -1183,9 +1239,16 @@ function renderJob() {
     : `${kindBadge(lr.dryRun ? 'test' : lr.success ? (lr.partial ? 'partial' : 'reserved') : lr.holdActive ? 'hold' : 'failed')}
        ${fmtTime(lr.timestamp)} · ${esc(lr.error || (lr.seats ? [].concat(lr.seats).join(', ') : ''))}${lr.taken?.length ? ` · <span style="color:var(--pink)">no disponibles: ${esc(lr.taken.join(', '))}</span>` : ''}`;
   const taken   = j.targetSeats.filter(s => j.seatState?.[s.label] === 'taken').map(s => s.label);
-  const samples = (j.holdSamples || []).map(x => `${fmtMin(x.ms)} <span style="color:var(--muted)">(${(x.loMs / 60000).toFixed(1)}–${(x.hiMs / 60000).toFixed(1)})</span>`).join(', ');
+  const samples = (j.holdSamples || []).map(x => `${fmtMin(x.ms)} <span style="color:var(--muted)">(${fmtM(x.loMs)}–${fmtM(x.hiMs)}${x.newOrder != null ? ` · ${x.newOrder ? 'orden nueva' : `reserva nº ${x.orderSeq}`}` : ''})</span>`).join(', ');
+  const sch = j.schedule || {};
+  const rangeTxt = sch.mode === 'range' && j.holdSamples?.length
+    ? `entre ~${fmtMin(sch.minMs)} y ~${fmtMin(sch.maxMs)}` : j.learnedHoldMs ? `~${fmtMin(j.learnedHoldMs)}` : '';
+  const expiry = j.orderExpiryInfo
+    ? `<span style="color:var(--purple)">El cine informa: ${esc(j.orderExpiryInfo.fields.join(', '))}${j.orderExpiryInfo.usable ? '' : ' (no interpretable como hora)'}</span>`
+    : (j.expiryChecked ? '<span style="color:var(--muted)">La respuesta del cine no trae hora de vencimiento</span>' : '');
   const holdCell = [
-    j.learnedHoldMs ? `~${fmtMin(j.learnedHoldMs)} <span style="color:var(--muted)">· la menor de las mediciones</span><br>Mediciones: ${samples}` : 'sin medir todavía',
+    j.holdSamples?.length ? `${rangeTxt}<br>Mediciones: ${samples}` : 'sin medir todavía',
+    expiry,
     j.holdHint ? `<span style="color:var(--orange)">Estimación de un solo uso: &lt; ${fmtMin(j.holdHint)}</span> <span style="color:var(--muted)">(se liberó antes de la primera revisión; no cuenta como medición)</span>` : '',
   ].filter(Boolean).join('<br>');
   const rows = [
@@ -1198,7 +1261,7 @@ function renderJob() {
       ? `<div style="color:var(--pink);font-size:.78rem;margin-top:4px">${esc(taken.join(', '))} no disponible${taken.length > 1 ? 's' : ''}: el job sigue con el resto y lo${taken.length > 1 ? 's' : ''} vuelve a incluir si se libera${taken.length > 1 ? 'n' : ''}</div>` : '')],
     ['Entrada',          esc(`${j.ticketDesc || ''} (${j.ticketCode})`)],
     ['Retención',        holdCell],
-    ['Revisiones',       planHtml(j)],
+    ['Plan de revisiones', planHtml(j)],
     ['Si falla',         `reintento cada ${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s (aleatorio)`],
     ['Intentos / OK',    `${j.attempts} / ${j.successes}`],
     ['Último resultado', last],
@@ -1215,6 +1278,8 @@ function renderLog(log) {
     return `<div class="log-line ${esc(e.type)}"><span class="log-t">${t}</span>${e.jobName ? `<span class="log-job">[${esc(e.jobName)}]</span>` : ''}${esc(e.msg)}</div>`;
   }).join('');
   if (atBottom) box.scrollTop = box.scrollHeight;
+  const last = log[0];
+  $('consolePreview').textContent = last ? `${last.jobName ? `[${last.jobName}] ` : ''}${last.msg}` : '';
 }
 
 const SOURCE_LABEL = { auto: 'Automático', manual: 'Manual', test: 'Test' };
@@ -1241,11 +1306,13 @@ function renderHistory() {
   const failed  = hist.filter(h => !h.success && h.kind !== 'hold').length;
   $('histSub').textContent = hist.length
     ? `${hist.length} intentos · ${ok} reservas OK${partial ? ` (${partial} parciales)` : ''} · ${holds} en retención · ${failed} fallidos` : '';
-  if (!hist.length) { $('histRows').innerHTML = '<tr><td colspan="7" class="hist-empty">Aún no hay intentos</td></tr>'; return; }
+  if (!hist.length) { $('histRows').innerHTML = '<tr><td colspan="5" class="hist-empty">Aún no hay intentos</td></tr>'; return; }
 
   const nextCell = h => h.nextInMs ? `+${Math.round(h.nextInMs / 1000)} s · ${fmtClock(new Date(h.time).getTime() + h.nextInMs)}` : '—';
-  const row = (h, cls = '') => `<tr class="${cls}"><td>${fmtDay(h.time)} ${fmtClock(h.time)}</td><td>${esc(h.jobName)}</td><td>${SOURCE_LABEL[h.source] || esc(h.source)}</td>
-    <td>${kindBadge(h.kind)}</td><td>${esc(h.msg)}</td><td>${h.holdMs ? `liberada tras ~${fmtMin(h.holdMs)}${h.holdLoMs != null ? `<br><span style="color:var(--muted);font-size:.74rem">entre ${(h.holdLoMs / 60000).toFixed(1)} y ${(h.holdHiMs / 60000).toFixed(1)} min</span>` : ''}` : '—'}</td><td>${nextCell(h)}</td></tr>`;
+  const holdLine = h => !h.holdMs ? '' : `<span class="hist-hold">⏱ liberada tras ~${fmtMin(h.holdMs)}`
+    + (h.holdLoMs != null ? ` (entre ${fmtM(h.holdLoMs)} y ${fmtM(h.holdHiMs)} min${h.holdNewOrder != null ? ` · ${h.holdNewOrder ? 'orden nueva' : `reserva nº ${h.holdOrderSeq}`}` : ''})` : '') + '</span>';
+  const row = (h, cls = '') => `<tr class="${cls}"><td>${fmtDay(h.time)} ${fmtClock(h.time)}</td><td>${esc(h.jobName)}</td>
+    <td>${kindBadge(h.kind)}<span class="hist-src">${SOURCE_LABEL[h.source] || esc(h.source)}</span></td><td>${esc(h.msg)}${holdLine(h)}</td><td>${nextCell(h)}</td></tr>`;
 
   const html = [];
   for (const g of groupHistory(hist)) {
@@ -1260,10 +1327,10 @@ function renderHistory() {
       ? `${esc(newest.msg.replace(/^Retención activa: /, '').replace(/ \([\d.]+ min\)$/, ''))}`
       : esc(newest.msg);
     html.push(`<tr class="hist-group" data-group="${esc(id)}">
-      <td>${fmtDay(oldest.time)} ${fmtClock(oldest.time)} → ${fmtClock(newest.time)}</td><td>${esc(newest.jobName)}</td><td>${SOURCE_LABEL[newest.source] || esc(newest.source)}</td>
-      <td>${kindBadge(newest.kind)} <span class="hist-count">×${g.length}</span></td>
+      <td>${fmtDay(oldest.time)} ${fmtClock(oldest.time)} → ${fmtClock(newest.time)}</td><td>${esc(newest.jobName)}</td>
+      <td>${kindBadge(newest.kind)} <span class="hist-count">×${g.length}</span><span class="hist-src">${SOURCE_LABEL[newest.source] || esc(newest.source)}</span></td>
       <td>${detail}<span class="hist-toggle">${open ? '▾ ocultar' : `▸ ${g.length} revisiones en ${dur}`}</span></td>
-      <td>—</td><td>${nextCell(newest)}</td></tr>`);
+      <td>${nextCell(newest)}</td></tr>`);
     if (open) for (const h of g) html.push(row(h, 'hist-sub'));
   }
   $('histRows').innerHTML = html.join('');
@@ -1350,9 +1417,20 @@ async function pollStatus() {
 
 // ── Configuración: cookies / tokens ───────────────────────────────────────────
 function toggleConfig() {
-  const open = $('configPanel').classList.toggle('open');
-  if (open) { loadCookies(); if (state.role === 'admin') loadPasswords(); }
+  $('configModal').classList.add('open');
+  loadCookies();
+  if (state.role === 'admin') loadPasswords();
 }
+function closeConfig() { $('configModal').classList.remove('open'); }
+
+// Consola plegable; minimizada por defecto (se recuerda en este navegador)
+function setConsole(open) {
+  $('consoleCard').classList.toggle('collapsed', !open);
+  $('consoleToggle').textContent = open ? '▾' : '▸';
+  try { localStorage.setItem('consoleOpen', open ? '1' : '0'); } catch {}
+  if (open) $('logBox').scrollTop = $('logBox').scrollHeight;
+}
+function toggleConsole() { setConsole($('consoleCard').classList.contains('collapsed')); }
 
 function showTab(id) {
   for (const t of document.querySelectorAll('.tab')) t.classList.toggle('active', t.dataset.tab === id);
