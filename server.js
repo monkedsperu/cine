@@ -962,7 +962,8 @@ function jobAlerts() {
 // prefFrom–prefTo: horario preferido dentro de cada día (si no hay, la función más cercana a ese rango)
 const WATCH_DEFAULTS = { pollMinMs: 3000, pollMaxMs: 5000, seatCount: 5, ticketCode: DEFAULTS.ticketCode,
                          sessionsPerCinema: 3, prefFrom: '20:00', prefTo: '21:00' };
-const WATCH_MAX_SESSIONS = 3;       // máximo de funciones reservadas por cine
+const WATCH_MAX_SESSIONS = 3;
+const WATCH_SLOW_MS      = 5 * 60000; // con todo reservado: solo se revisa si aparece una función mejor       // máximo de funciones reservadas por cine
 const WATCH_NODETAIL_MS = 120000;   // tiempo que se espera el detalle (hora) de una función nueva antes de elegir sin él
 const WATCH_RETRY_MS = 30000;   // reintento de una función que no se pudo procesar
 const WATCHER_KEYS   = ['id', 'createdAt', 'name', 'movieId', 'movieTitle', 'posterUrl', 'cinemas', 'pollMinMs', 'pollMaxMs',
@@ -1013,6 +1014,7 @@ function publicWatcher(w) {
   o.nextAt = w.nextAt;
   o.busy   = w.busy;
   o.status = w.status || null;
+  o.slowMode = !!w.slowMode;
   // Funciones procesadas, con el estado actual de su job
   o.sessions = Object.entries(w.handled || {}).filter(([, h]) => h.status !== 'dropped').map(([key, h]) => {
     const j = h.jobId && jobs.get(h.jobId);
@@ -1069,9 +1071,27 @@ async function watcherTick(w) {
   w.lastCheckAt = Date.now();
   if (changed || w.checks % 20 === 0) saveWatchers();
   if (!w.running) return;
-  const delay = w.pollMinMs + Math.floor(Math.random() * (w.pollMaxMs - w.pollMinMs + 1));
+  // Modo lento: todos los cines elegidos ya tienen sus funciones con job. Sigue revisando (por si aparece
+  // una función anterior o una elegida se agota), pero cada 5 min para no gastar tráfico.
+  const slow = watcherComplete(w);
+  if (slow !== !!w.slowMode) {
+    w.slowMode = slow;
+    addWLog(w, slow
+      ? 'Todos los cines elegidos tienen sus funciones reservadas: se pasa a revisar cada 5 min'
+      : `Faltan funciones por reservar: se vuelve a consultar cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s`, slow ? 'success' : 'info');
+    saveWatchers();
+  }
+  const delay = slow ? WATCH_SLOW_MS : w.pollMinMs + Math.floor(Math.random() * (w.pollMaxMs - w.pollMinMs + 1));
   w.nextAt = Date.now() + delay;
   w.timer  = setTimeout(() => watcherTick(w), delay);
+}
+
+// Cada cine elegido tiene su selección de funciones y todas ya tienen job
+function watcherComplete(w) {
+  return w.cinemas.length > 0 && w.cinemas.every(c => {
+    const keys = (w.chosen[c.id] || '').split(',').filter(Boolean);
+    return keys.length > 0 && keys.every(k => w.handled[k]?.status === 'job');
+  });
 }
 
 // Devuelve true si hubo novedades (para guardar)

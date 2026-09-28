@@ -588,7 +588,8 @@ function renderWatchers(list) {
     const jobsOf = w.sessions.filter(x => x.job);
     const activeJobs = jobsOf.filter(x => x.job.running && !x.job.paused);
     const st = !w.running ? '<span class="st st-stop">Detenido</span>'
-      : w.foundAt ? '<span class="st st-found">🎉 Funciones detectadas · sigue vigilando</span>'
+      : w.slowMode ? '<span class="st st-found">✓ Funciones reservadas · revisa cada 5 min</span>'
+      : w.foundAt ? '<span class="st st-found">🎉 Funciones detectadas · faltan cines</span>'
       : '<span class="st st-run">Vigilando…</span>';
     const next = w.running && w.nextAt ? ` · próxima en ${Math.max(0, Math.round((w.nextAt - Date.now()) / 1000))} s` : '';
     const rows = w.sessions.map(x => `
