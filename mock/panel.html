@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cine simulado</title>
+<style>
+:root {
+  --bg: #f3f4f9; --card: #fff; --border: #e6e9f0; --text: #1f1f2e; --muted: #8d90a5;
+  --purple: #8f5fe8; --green: #2fcc71; --pink: #fe5c7c; --yellow: #ffc100; --orange: #f96b1a; --cyan: #1ccfd9;
+  --dark: #181824;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Roboto', -apple-system, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+button, input, select { font-family: inherit; font-size: 13px; }
+header { background: var(--dark); color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+header h1 { font-size: 1.15rem; display: flex; align-items: center; gap: 10px; }
+header h1 .mark { width: 10px; height: 22px; background: var(--orange); border-radius: 2px; }
+header small { color: #9a9ab0; font-weight: 400; }
+header nav { margin-left: auto; display: flex; gap: 8px; }
+header a { color: #fff; text-decoration: none; background: #2c2c3a; padding: 6px 12px; border-radius: 6px; font-size: 13px; }
+header a:hover { background: var(--purple); }
+.grid { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 20px; align-items: start; }
+@media (max-width: 1000px) { .grid { grid-template-columns: 1fr; } }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+.card h2 { font-size: 1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+.sub { color: var(--muted); font-size: 12px; margin-bottom: 12px; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: .03em; }
+.b-soon { background: #fff3cd; color: #946c00; }
+.b-pre  { background: #d9f7e6; color: #198a4a; }
+.field { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+.field label { color: #555a70; }
+.field input[type=number] { width: 80px; padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; text-align: right; }
+.field input[type=date], .field select { padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; }
+.checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 8px 0 12px; }
+.checks label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.btn { border: none; border-radius: 6px; padding: 7px 12px; cursor: pointer; background: #eceef5; color: var(--text); }
+.btn:hover { filter: brightness(.95); }
+.btn-p { background: var(--purple); color: #fff; }
+.btn-g { background: var(--green); color: #fff; }
+.btn-r { background: var(--pink); color: #fff; }
+.btn-big { width: 100%; padding: 14px; font-size: 15px; font-weight: 700; letter-spacing: .04em; margin-top: 8px; }
+.btn-s { padding: 4px 8px; font-size: 12px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 12px 0; }
+.sect { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 4px; }
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 11px; color: var(--muted); font-weight: 500; text-transform: uppercase; padding: 6px; border-bottom: 1px solid var(--border); }
+td { padding: 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr.sel td { background: #f4effe; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: #f8f8fc; }
+.cin-row td { background: #fafafd; font-weight: 700; font-size: 12px; color: #555a70; }
+.pill { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-right: 3px; white-space: nowrap; }
+.p-ok { background: #d9f7e6; color: #198a4a; }
+.p-wait { background: #fff3cd; color: #946c00; }
+.occ-bar { width: 110px; height: 8px; background: #eceef5; border-radius: 4px; overflow: hidden; display: flex; }
+.occ-bar i { display: block; height: 100%; }
+.mono { font-family: 'Roboto Mono', Consolas, monospace; font-size: 12px; }
+.muted { color: var(--muted); }
+.empty { color: var(--muted); padding: 20px; text-align: center; }
+/* Sala */
+.screen { margin: 6px auto 14px; width: 70%; height: 6px; border-radius: 0 0 50% 50%; background: #c9cedb; }
+.screen-l { text-align: center; color: var(--muted); font-size: 11px; margin-top: -10px; margin-bottom: 10px; }
+.seatmap { display: flex; flex-direction: column; gap: 4px; align-items: center; overflow-x: auto; padding-bottom: 6px; }
+.srow { display: flex; gap: 4px; align-items: center; }
+.rl { width: 18px; text-align: center; font-size: 11px; color: var(--muted); }
+.seat { width: 22px; height: 20px; border-radius: 5px 5px 3px 3px; font-size: 9px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #c9cedb; background: #fff; color: #888; user-select: none; }
+.seat:hover { outline: 2px solid var(--purple); }
+.seat.gap { visibility: hidden; cursor: default; }
+.seat.sold { background: #9aa0b4; border-color: #9aa0b4; color: #fff; }
+.seat.hold { color: #fff; font-weight: 700; }
+.seat.wc { background: #e7f4ff; border-color: #9cc9ef; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 12px; color: #555a70; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 14px; height: 12px; border-radius: 3px; display: inline-block; border: 1px solid #c9cedb; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+/* Órdenes / log */
+.order { display: flex; gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.order:last-child { border-bottom: none; }
+.dot { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.order .info { flex: 1; min-width: 0; }
+.order .cd { font-weight: 700; font-variant-numeric: tabular-nums; }
+.log { max-height: 360px; overflow-y: auto; font-size: 12px; }
+.log div { padding: 4px 0; border-bottom: 1px dashed var(--border); display: flex; gap: 8px; }
+.log time { color: var(--muted); flex: none; font-variant-numeric: tabular-nums; }
+.log .success { color: #198a4a; } .log .error { color: #d0304f; } .log .warn { color: #a86400; }
+.stats { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.stats span { background: #f3f4f9; border-radius: 4px; padding: 3px 7px; font-size: 11px; }
+.add { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+.add select, .add input { padding: 5px 7px; border: 1px solid var(--border); border-radius: 5px; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: var(--dark); color: #fff; padding: 10px 16px; border-radius: 6px; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1><span class="mark"></span>Cine simulado <small>para probar el bot sin tocar el cine real</small></h1>
+  <nav>
+    <a id="lnkBot" href="#" target="_blank">Bot de prueba ↗</a>
+    <a id="lnkPre" href="#" target="_blank">Preestreno ↗</a>
+  </nav>
+</header>
+
+<div class="grid">
+  <div class="col">
+    <section class="card">
+      <h2 id="mTitle">PELICULA DE PRUEBA <span id="mBadge" class="badge b-soon">Próximamente</span></h2>
+      <div class="sub" id="mSub"></div>
+
+      <div class="field"><label>Fecha de estreno</label><input type="date" id="openingDate"></div>
+      <div class="sect">Cines donde se habilita</div>
+      <div class="checks" id="cinemaChecks"></div>
+
+      <div class="sect">Funciones que se publican</div>
+      <div class="field"><label>Horarios (separados por coma)</label><input id="times" style="width:190px;padding:5px 7px;border:1px solid var(--border);border-radius:5px" placeholder="11:00, 14:20, 20:30"></div>
+      <div class="field"><label>Días desde el estreno</label><input type="number" id="days" min="1" max="14"></div>
+      <div class="field"><label>Desfase de horario entre cines</label><span><input type="number" id="cinemaOffsetMin" min="0" max="120"> min</span></div>
+      <div class="sub" style="margin:4px 0 0">Se aplica al pulsar HABILITAR. Para probar que el bot siempre toma la primera función, pon una temprana (p. ej. 11:00) fuera del horario preferido del vigía.</div>
+
+      <div class="sect">Publicación por etapas (como el cine real)</div>
+      <div class="field"><label>Hora (detalle) visible tras</label><span><input type="number" id="detailDelaySec" min="0"> s</span></div>
+      <div class="field"><label>Mapa de la sala tras</label><span><input type="number" id="seatplanDelaySec" min="0"> s</span></div>
+      <div class="field"><label>Entradas a la venta tras</label><span><input type="number" id="ticketsDelaySec" min="0"> s</span></div>
+      <div class="field"><label>Butacas ya vendidas al publicar</label><span><input type="number" id="soldPct" min="0" max="95"> %</span></div>
+
+      <button class="btn btn-g btn-big" id="btnEnable" onclick="enable()">HABILITAR</button>
+      <button class="btn btn-r btn-big" id="btnDisable" onclick="disable()" style="display:none">VOLVER A PRÓXIMAMENTE</button>
+    </section>
+
+    <section class="card">
+      <h2>Comportamiento del cine</h2>
+      <div class="sub">Se aplica al momento.</div>
+      <div class="field"><label>Retención de butacas por orden</label><span><input type="number" id="holdSec" min="10"> s</span></div>
+      <div class="field"><label>Informar vencimiento en la reserva</label><input type="checkbox" id="reportExpiry"></div>
+      <div class="field"><label title="Qué pasa si el bot reenvía las butacas que su orden ya tiene (renovación experimental)">Reenviar la misma orden</label>
+        <select id="renewMode"><option value="extends">renueva la retención</option><option value="rejects">se rechaza</option></select></div>
+      <div class="field"><label>Máximo de entradas por orden</label><input type="number" id="maxPerOrder" min="1" max="100"></div>
+      <div class="field"><label>add-tickets que fallan con 502</label><span><input type="number" id="failRate" min="0" max="100"> %</span></div>
+      <hr>
+      <div class="field"><label><b>Público comprando</b> (película de prueba)</label><input type="checkbox" id="crowdOn"></div>
+      <div class="field"><label>Una compra cada</label><span><input type="number" id="crowdEverySec" min="1"> s</span></div>
+      <div class="field"><label>Butacas por compra (máx.)</label><input type="number" id="crowdMax" min="1" max="10"></div>
+    </section>
+
+    <section class="card">
+      <h2>Retenciones activas <span class="muted" id="ordCount"></span></h2>
+      <div class="sub">Órdenes abiertas por add-tickets (una por userSessionId). Se liberan solas al vencer.</div>
+      <div id="orders"></div>
+    </section>
+  </div>
+
+  <div class="col">
+    <section class="card">
+      <h2>Funciones de la película de prueba</h2>
+      <div class="sub">Clic en una fila para ver su sala.</div>
+      <div id="sessions"></div>
+      <div class="add" id="addForm" style="display:none">
+        <b style="font-size:12px">Añadir función:</b>
+        <select id="addCinema"></select>
+        <input type="date" id="addDay">
+        <input type="time" id="addTime" value="20:15">
+        <input id="addScreen" value="SALA 5" size="7">
+        <button class="btn btn-p btn-s" onclick="addSession()">Añadir</button>
+      </div>
+    </section>
+
+    <section class="card" id="mapCard">
+      <h2 id="mapTitle">Sala</h2>
+      <div class="sub" id="mapSub">Elige una función.</div>
+      <div id="map"><div class="empty">—</div></div>
+    </section>
+
+    <section class="card">
+      <h2>Registro del cine</h2>
+      <div class="stats" id="stats"></div>
+      <div class="log" id="log"></div>
+    </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+let st = null, selKey = null, cfgLoaded = false, checksBuilt = false;
+
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { toast(j.error || `Error ${r.status}`); throw new Error(j.error); }
+  return j;
+}
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('on'), 2500); }
+
+const DAYS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const fmtWhen = iso => { const d = new Date(iso.slice(0, 10) + 'T12:00:00'); return `${DAYS[d.getDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)} ${iso.slice(11, 16)}`; };
+const secs = ms => ms >= 60000 ? `${Math.floor(ms / 60000)}:${String(Math.floor(ms % 60000 / 1000)).padStart(2, '0')}` : `${Math.ceil(ms / 1000)}s`;
+const clock = ms => new Date(ms).toLocaleTimeString('es-PE', { hour12: false });
+const hue = uid => { let h = 0; for (const c of uid) h = (h * 31 + c.charCodeAt(0)) % 360; return h; };
+const uidColor = uid => `hsl(${hue(uid)} 65% 50%)`;
+
+// ── Config ──
+const CFG_NUM = ['days', 'cinemaOffsetMin', 'holdSec', 'failRate', 'maxPerOrder', 'detailDelaySec', 'seatplanDelaySec', 'ticketsDelaySec', 'soldPct', 'crowdEverySec', 'crowdMax'];
+const CFG_BOOL = ['reportExpiry', 'crowdOn'];
+for (const k of CFG_NUM) $(k).addEventListener('change', () => api('/mock/api/config', { [k]: Number($(k).value) }).then(() => toast('Guardado')));
+for (const k of CFG_BOOL) $(k).addEventListener('change', () => api('/mock/api/config', { [k]: $(k).checked }).then(() => toast('Guardado')));
+$('times').addEventListener('change', () => api('/mock/api/config', { times: $('times').value }).then(r => { $('times').value = r.cfg.times; toast('Horarios guardados'); }));
+$('renewMode').addEventListener('change', () => api('/mock/api/config', { renewMode: $('renewMode').value }).then(() => toast('Guardado')));
+$('openingDate').addEventListener('change', () => api('/mock/api/config', { openingDate: $('openingDate').value }));
+
+function loadCfg() {
+  for (const k of CFG_NUM) if (document.activeElement !== $(k)) $(k).value = st.cfg[k];
+  for (const k of CFG_BOOL) $(k).checked = !!st.cfg[k];
+  if (document.activeElement !== $('renewMode')) $('renewMode').value = st.cfg.renewMode || 'extends';
+  if (document.activeElement !== $('times')) $('times').value = st.cfg.times || '';
+}
+
+// ── Película ──
+async function enable() {
+  const cinemas = [...document.querySelectorAll('#cinemaChecks input:checked')].map(i => i.value);
+  await api('/mock/api/enable', { cinemas });
+  toast('Película habilitada');
+  refresh();
+}
+async function disable() {
+  if (!confirm('¿Volver a "próximamente"? Se borran sus funciones y retenciones (los jobs del bot quedarán apuntando a funciones que ya no existen).')) return;
+  selKey = null;
+  await api('/mock/api/disable', {});
+  refresh();
+}
+
+function renderMovie() {
+  const t = st.test;
+  $('mBadge').className = 'badge ' + (t.enabled ? 'b-pre' : 'b-soon');
+  $('mBadge').textContent = t.enabled ? 'Preventa' : 'Próximamente';
+  $('mSub').innerHTML = `ID <span class="mono">${esc(st.movie.id)}</span> · ${t.enabled
+    ? `habilitada a las ${clock(t.enabledAt)} en ${t.cinemas.map(id => esc(st.cinemas.find(c => c.id === id)?.name || id)).join(', ')}`
+    : 'figura en la cartelera como próximo estreno, sin funciones'}`;
+  $('btnEnable').style.display = t.enabled ? 'none' : '';
+  $('btnDisable').style.display = t.enabled ? '' : 'none';
+  if (document.activeElement !== $('openingDate')) $('openingDate').value = t.openingDate;
+  $('openingDate').disabled = t.enabled;
+  if (!checksBuilt) {
+    $('cinemaChecks').innerHTML = st.cinemas.map(c => `<label><input type="checkbox" value="${c.id}" ${t.cinemas.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('');
+    $('addCinema').innerHTML = st.cinemas.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    $('addDay').value = t.openingDate;
+    checksBuilt = true;
+  }
+  for (const i of document.querySelectorAll('#cinemaChecks input')) i.disabled = t.enabled;
+  $('addForm').style.display = t.enabled ? '' : 'none';
+}
+
+// ── Funciones ──
+function renderSessions() {
+  const list = st.sessions;
+  if (!list.length) { $('sessions').innerHTML = `<div class="empty">${st.test.enabled ? 'Sin funciones' : 'Aún no hay funciones: pulsa <b>HABILITAR</b>.'}</div>`; return; }
+  let html = '<table><tr><th>Función</th><th>Sala</th><th>Publicación</th><th>Ocupación</th><th></th></tr>';
+  let cin = null;
+  for (const s of list) {
+    if (s.cinemaName !== cin) { cin = s.cinemaName; html += `<tr class="cin-row"><td colspan="5">${esc(cin)}</td></tr>`; }
+    const stage = (ms, txt) => ms > 0 ? `<span class="pill p-wait">${txt} en ${secs(ms)}</span>` : `<span class="pill p-ok">${txt}</span>`;
+    const pct = n => (n / s.total * 100).toFixed(1);
+    html += `<tr class="click ${s.key === selKey ? 'sel' : ''}" onclick="selectSession('${s.key}')">
+      <td><b>${fmtWhen(s.showtime)}</b> <span class="muted mono">#${s.sessionId}</span></td>
+      <td>${esc(s.screenName)}</td>
+      <td>${stage(s.detailIn, 'hora')}${stage(s.seatplanIn, 'mapa')}${stage(s.ticketsIn, 'entradas')}</td>
+      <td><div class="occ-bar" title="${s.sold} vendidas · ${s.held} retenidas · ${s.free} libres"><i style="width:${pct(s.sold)}%;background:#9aa0b4"></i><i style="width:${pct(s.held)}%;background:var(--purple)"></i></div>
+          <span class="muted" style="font-size:11px">${s.free} libres${s.held ? ` · ${s.held} ret.` : ''}</span></td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        ${s.detailIn || s.seatplanIn || s.ticketsIn ? `<button class="btn btn-s" onclick="act('${s.key}','publish-now')" title="Publicar hora, mapa y entradas ya">Publicar ya</button>` : ''}
+        <button class="btn btn-s" onclick="delSession('${s.key}')" title="Eliminar función (p. ej. el cine la retira)">🗑</button>
+      </td></tr>`;
+  }
+  $('sessions').innerHTML = html + '</table>';
+}
+
+async function act(key, action, body = {}) { await api(`/mock/api/session/${key}/${action}`, body); refresh(); }
+async function delSession(key) { if (confirm('¿Eliminar esta función?')) { if (key === selKey) selKey = null; await act(key, 'delete'); } }
+async function addSession() {
+  await api('/mock/api/add-session', { cinemaId: $('addCinema').value, day: $('addDay').value, time: $('addTime').value, screenName: $('addScreen').value });
+  toast('Función añadida');
+  refresh();
+}
+function selectSession(key) { selKey = key; renderSessions(); refreshMap(); }
+
+// ── Sala ──
+async function refreshMap() {
+  if (!selKey) return;
+  let v;
+  try { v = await api(`/mock/api/session/${selKey}`); } catch { selKey = null; $('map').innerHTML = '<div class="empty">—</div>'; return; }
+  const s = v.summary;
+  $('mapTitle').textContent = `Sala · ${s.cinemaName} · ${fmtWhen(s.showtime)} · ${s.screenName}`;
+  $('mapSub').innerHTML = `${s.free} libres · ${s.sold} vendidas · ${s.held} retenidas. Clic: libre ↔ vendida a otra persona; en una retenida, libera esa orden.${s.seatplanIn ? ` <b>El bot aún no ve el mapa (${secs(s.seatplanIn)}).</b>` : ''}`;
+  // Vista desde la pantalla: filas y columnas invertidas, como la web
+  let html = '<div class="screen"></div><div class="screen-l">PANTALLA</div><div class="seatmap">';
+  for (let ri = v.rows.length - 1; ri >= 0; ri--) {
+    const row = v.rows[ri];
+    html += `<div class="srow"><span class="rl">${row.name}</span>`;
+    for (let ci = v.cols - 1; ci >= 0; ci--) {
+      const x = row.seats[ci];
+      if (!x) { html += '<span class="seat gap"></span>'; continue; }
+      const cls = x.kind === 'free' ? (x.wc ? 'wc' : '') : x.kind;
+      const style = x.kind === 'hold' ? `style="background:${uidColor(x.uid)};border-color:${uidColor(x.uid)}"` : '';
+      const title = `${x.label}${x.wc ? ' (silla de ruedas)' : ''}: ${x.kind === 'free' ? 'libre' : x.kind === 'sold' ? 'vendida' : 'retenida por orden ' + x.uid.slice(0, 8)}`;
+      html += `<span class="seat ${cls}" ${style} title="${esc(title)}" onclick="seat(${x.ri},${x.ci})">${x.wc ? '♿' : x.label.slice(1)}</span>`;
+    }
+    html += `<span class="rl">${row.name}</span></div>`;
+  }
+  html += `</div>
+    <div class="legend"><span><i></i>Libre</span><span><i style="background:#9aa0b4;border-color:#9aa0b4"></i>Vendida (otras personas)</span>
+      <span><i style="background:var(--purple);border-color:var(--purple)"></i>Retenida (color por orden)</span><span><i style="background:#e7f4ff;border-color:#9cc9ef"></i>Silla de ruedas</span></div>
+    <div class="toolbar">
+      <button class="btn btn-s" onclick="act('${selKey}','fill',{pct:30}).then(refreshMap)">Vender ~30% al azar</button>
+      <button class="btn btn-s" onclick="act('${selKey}','fill',{pct:80}).then(refreshMap)">Casi llena (~80%)</button>
+      <button class="btn btn-s" onclick="act('${selKey}','clear').then(refreshMap)">Borrar ventas</button>
+      <button class="btn btn-s" onclick="act('${selKey}','release').then(refreshMap)">Liberar retenciones</button>
+    </div>`;
+  $('map').innerHTML = html;
+}
+async function seat(ri, ci) { await api(`/mock/api/session/${selKey}/seat`, { ri, ci }); refreshMap(); refresh(); }
+
+// ── Órdenes y log ──
+function renderOrders() {
+  $('ordCount').textContent = st.orders.length ? `(${st.orders.length})` : '';
+  $('orders').innerHTML = st.orders.length ? st.orders.map(o => `
+    <div class="order"><span class="dot" style="background:${uidColor(o.uid)}"></span>
+      <div class="info"><b>${o.seats.map(esc).join(', ')}</b><div class="muted" style="font-size:12px">${esc(o.where)} · orden <span class="mono">${o.uid.slice(0, 8)}</span> · ${o.adds} reserva${o.adds > 1 ? 's' : ''}</div></div>
+      <span class="cd" title="Vence a las ${clock(o.expiresAt)}">${secs(Math.max(0, o.expiresAt - st.now))}</span>
+      <button class="btn btn-s" onclick="api('/mock/api/order/${o.uid}/release',{}).then(refresh)">Liberar</button>
+    </div>`).join('') : '<div class="empty">Ninguna</div>';
+}
+function renderLog() {
+  $('stats').innerHTML = `<span><b>${st.stats.requests}</b> peticiones del bot</span>` + Object.entries(st.stats.byEndpoint)
+    .sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span>${esc(k.replace('/api/v1-web/', ''))}: <b>${n}</b></span>`).join('');
+  $('log').innerHTML = st.log.map(e => `<div><time>${clock(e.at)}</time><span class="${e.type}">${esc(e.msg)}</span></div>`).join('') || '<div class="empty">Sin eventos</div>';
+}
+
+async function refresh() {
+  try { st = await api('/mock/api/state'); } catch { return; }
+  $('lnkBot').href = st.botUrl; $('lnkPre').href = st.botUrl + '/preestreno';
+  if (!cfgLoaded) { loadCfg(); cfgLoaded = true; } else loadCfg();
+  renderMovie(); renderSessions(); renderOrders(); renderLog();
+}
+refresh();
+setInterval(refresh, 1000);
+setInterval(refreshMap, 1500);
+</script>
+</body>
+</html>

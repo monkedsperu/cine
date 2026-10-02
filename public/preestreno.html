@@ -124,6 +124,27 @@ button, input { font-family: inherit; }
 /* ── Formulario del vigía ── */
 .wform { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
 .wform .note { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+.wform details.adv { border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; }
+.wform details.adv > summary { cursor: pointer; font-weight: 500; font-size: .85rem; user-select: none; }
+.wform details.adv[open] > summary { margin-bottom: 10px; }
+.wform .opts { display: flex; flex-direction: column; gap: 6px; font-size: .82rem; }
+.wform .opts label { display: flex; gap: 8px; align-items: center; cursor: pointer; }
+.wform .opts input[type=checkbox] { accent-color: var(--purple); width: 15px; height: 15px; }
+.wform .presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.wform .prof-row .btn.on { border-color: var(--purple); color: var(--purple); box-shadow: 0 0 0 2px rgba(143,95,232,.3); font-weight: 700; }
+.prof { display: inline-flex; align-items: center; gap: 4px; font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; white-space: nowrap; vertical-align: middle; }
+.prof-preventa { background: linear-gradient(135deg, #f96b1a, #e8114b); color: #fff; }
+.prof-normal { background: #e6e9f0; color: #4b4f63; }
+.prof-custom { background: #efe9fd; color: var(--purple); }
+.prof small { font-weight: 500; opacity: .85; }
+.info-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%;
+  background: #eef0f5; color: var(--muted); border: 1px solid var(--border); font-size: .72rem; font-weight: 700; cursor: help; font-style: normal; }
+.info-tip .tip { display: none; position: absolute; z-index: 60; top: 24px; left: -10px; width: 340px; background: #1f1f2e; color: #e8e8f0; border-radius: 6px;
+  padding: 10px 12px; font-size: .76rem; font-weight: 400; line-height: 1.45; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,.3); }
+.info-tip:hover .tip, .info-tip:focus .tip { display: block; }
+.info-tip .tip b { color: #fff; } .info-tip .tip ul { margin: 4px 0 8px 16px; padding: 0; }
+.wform .prof-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .85rem; }
+.wform .edit-banner { background: #f4effe; border: 1px solid #d9cdf7; border-radius: 6px; padding: 8px 12px; font-size: .82rem; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .frow { display: flex; gap: 14px; flex-wrap: wrap; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field > label { font-size: .7rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
@@ -193,6 +214,23 @@ button, input { font-family: inherit; }
   .top-right .hide-sm { display: none; }
   .day { flex-direction: column; gap: 6px; }
 }
+/* Editor del bloque de butacas */
+.blk { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; margin: 4px 0 14px; }
+.blk-grid { background: #f7f8fc; border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px 12px; user-select: none; }
+.blk-screen { height: 5px; margin: 0 auto 4px; width: 70%; background: #c9cedb; border-radius: 0 0 50% 50%; }
+.blk-sl { text-align: center; font-size: .65rem; color: var(--muted); letter-spacing: 1px; margin-bottom: 8px; }
+.blk-rows { display: flex; flex-direction: column; gap: 3px; }
+.blk-row { display: flex; gap: 3px; }
+.blk-l { width: 12px; font-size: .6rem; color: var(--muted); text-align: center; line-height: 11px; }
+.blk-c { width: 13px; height: 11px; border-radius: 3px 3px 2px 2px; background: #fff; border: 1px solid #d3d7e2; cursor: pointer; }
+.blk-c:hover { border-color: var(--purple); }
+.blk-c.on { background: var(--purple); border-color: var(--purple); }
+.blk-c.mid { box-shadow: inset 0 0 0 2px #fff; }
+.blk-side { display: flex; flex-direction: column; gap: 10px; min-width: 220px; }
+.blk-side .frow { gap: 10px; }
+.blk-side .field input[type=number] { width: 80px; }
+.blk-sum { font-size: .8rem; color: var(--text); line-height: 1.5; }
+.blk-sum b { color: var(--purple); }
 </style>
 </head>
 <body>
@@ -248,7 +286,7 @@ button, input { font-family: inherit; }
   <!-- ═══ Nuevo vigía ═══ -->
   <section class="card" id="watchFormCard" style="display:none">
     <div class="card-head">
-      <div class="card-title">Vigilar y reservar automáticamente</div>
+      <div class="card-title" id="wfTitle">Vigilar y reservar automáticamente</div>
       <div class="card-sub" id="wfSub"></div>
     </div>
     <div class="wform" id="watchForm"></div>
@@ -458,7 +496,7 @@ function announce(title, n, custom) {
 
 // ── Formulario del vigía ──────────────────────────────────────────────────────
 let cinemas = null;            // [{ id, name }]
-const wf = { selected: new Set(), filter: '' };
+const wf = { selected: new Set(), filter: '', editing: null, list: [], profile: 'preventa' };
 
 async function loadCinemas() {
   if (cinemas) return cinemas;
@@ -473,14 +511,23 @@ function movieInfo() {
   return { id: state.movieId, title: d?.movie?.title || fromList?.title || state.movieId, posterUrl: d?.movie?.posterUrl || fromList?.posterUrl || '' };
 }
 
-async function renderWatchForm() {
+// Formulario del vigía: nuevo (película elegida) o edición de uno existente (w)
+async function renderWatchForm(w = null) {
+  wf.editing = w;
+  wf.profile = w?.profile || 'preventa';
   $('watchFormCard').style.display = '';
-  wf.selected = new Set(); wf.filter = '';
+  wf.selected = new Set(w ? w.cinemas.map(c => c.id) : []); wf.filter = '';
   $('wfSub').textContent = '';
+  $('wfTitle').textContent = w ? `Editar vigía · ${w.movieTitle}` : 'Vigilar y reservar automáticamente';
+  const v = (k, d) => w?.[k] ?? d;
+  const sec = (k, d) => (w?.[k] ?? d) / 1000;
+  blk.depth = v('blockDepth', 60); blk.shift = v('blockShift', 0);
   $('watchForm').innerHTML = `
+    ${w ? `<div class="edit-banner">✏️ Editando el vigía de <b>${esc(w.movieTitle)}</b>.
+      <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="wfApply" checked> Aplicar ritmo, hilos y ráfaga a sus jobs actuales</label>
+      <span class="muted">(el bloque de butacas solo cambia en los jobs nuevos)</span></div>` : `
     <div class="note">El vigía consulta la cartelera cada pocos segundos, aunque cierres esta página. Cuando aparezcan funciones de esta película
-      en los cines elegidos, elige en cada horario los asientos centrales juntos y crea un job de reserva
-      (el nombre del job empieza con el cine). Luego puedes <b>pausar</b> cualquier job en el panel para que solo te avise.</div>
+      en los cines elegidos, ubica tu bloque de butacas en cada función elegida y crea un job de reserva. Luego puedes <b>pausar</b> cualquier job en el panel.</div>`}
     <div class="field">
       <label>Cines <span class="sel-count" id="wfCount"></span></label>
       <div class="cine-box">
@@ -489,29 +536,191 @@ async function renderWatchForm() {
       </div>
     </div>
     <div class="frow">
-      <div class="field"><label>Consultar cada (s)</label>
-        <div class="range"><input type="number" id="wfMin" min="2" value="3"> a <input type="number" id="wfMax" min="2" value="5"></div></div>
-      <div class="field"><label>Funciones por cine</label><input type="number" id="wfSessions" min="1" max="3" value="3"></div>
+      <div class="field"><label>Funciones por cine</label><input type="number" id="wfSessions" min="1" max="3" value="${v('sessionsPerCinema', 3)}"></div>
       <div class="field"><label>Horario preferido</label>
-        <div class="range"><input type="time" id="wfFrom" value="20:00" style="width:110px !important"> a <input type="time" id="wfTo" value="21:00" style="width:110px !important"></div></div>
-      <div class="field"><label>Asientos juntos</label><input type="number" id="wfSeats" min="1" max="10" value="5"></div>
-      <div class="field"><label>Entrada preferida</label><input type="text" id="wfTicket" value="0050"></div>
+        <div class="range"><input type="time" id="wfFrom" value="${esc(v('prefFrom', '20:00'))}" style="width:110px !important"> a <input type="time" id="wfTo" value="${esc(v('prefTo', '21:00'))}" style="width:110px !important"></div></div>
+      <div class="field"><label>Entrada preferida</label><input type="text" id="wfTicket" value="${esc(v('ticketCode', '0050'))}"></div>
+      <div class="field"><label title="Si ya sabes cuánto retiene el cine las butacas, la ráfaga apunta al vencimiento desde la primera vuelta">Retención del cine (min)</label>
+        <input type="number" id="wfHoldGuess" min="0" max="180" step="0.5" placeholder="medirla" value="${w?.holdGuessMs ? +(w.holdGuessMs / 60000).toFixed(2) : ''}"></div>
     </div>
-    <div class="note">
-      <b>Funciones (máx. 3 por cine), en este orden:</b> 1) la <b>primera función</b> disponible, a cualquier hora;
-      2) la primera que empieza en el <b>horario preferido</b>, aunque sea otro día; 3) otra en el horario preferido pero
-      <b>de otro día</b>. Si alguna no existe, se usa la siguiente más próxima. Las ya empezadas o sin asientos juntos se saltan.
-      Si luego aparece una función que desplaza a otra (p. ej. un día anterior), el job de la que queda fuera se elimina.<br>
-      <b>Asientos:</b> siempre en la <b>misma fila</b>, seguidos (sin pasillo ni butaca ocupada en medio), lo más al centro posible
-      y algo por detrás de la mitad de la sala. Si en ninguna fila hay tantos juntos, se prueba con uno menos, hasta 2.<br>
-      <b>Entrada:</b> si la función no tiene el código indicado (0050 = General 2D), se usa otra entrada "General" de esa función, y si no hay, la primera disponible.
+    <div class="field"><label>Bloque de butacas</label></div>
+    <div class="blk">
+      <div class="blk-grid" title="Clic para mover el centro del bloque">
+        <div class="blk-screen"></div><div class="blk-sl">PANTALLA</div>
+        <div class="blk-rows" id="blkGrid"></div>
+      </div>
+      <div class="blk-side">
+        <div class="frow">
+          <div class="field"><label>Ancho (butacas)</label><input type="number" id="wfCols" min="1" max="30" value="${v('blockCols', 5)}" oninput="renderBlock()"></div>
+          <div class="field"><label>Filas</label><input type="number" id="wfRows" min="1" max="15" value="${v('blockRows', 1)}" oninput="renderBlock()"></div>
+        </div>
+        <div class="blk-sum" id="blkSum"></div>
+        <button class="btn btn-light btn-sm" style="align-self:flex-start" onclick="blk.depth = 60; blk.shift = 0; renderBlock()">Centrar</button>
+      </div>
     </div>
+    <div class="prof-row">
+      <span>Perfil de los jobs:</span>
+      <button class="btn btn-light btn-sm ${v('profile', 'preventa') === 'preventa' ? 'on' : ''}" id="wfP-preventa" onclick="wfPreset('preventa')">⚡ Preventa</button>
+      <button class="btn btn-light btn-sm ${v('profile', 'preventa') === 'normal' ? 'on' : ''}" id="wfP-normal" onclick="wfPreset('normal')">Normal</button>
+      <span class="info-tip" tabindex="0">i${profileInfoHtml()}</span>
+      <span id="wfProfLine"></span>
+    </div>
+    <div class="opts">
+      <label title="Unos segundos antes de que venza la retención, revisa cada segundo y re-reserva en cuanto se libera: achica el hueco en que otros compran tus butacas">
+        <input type="checkbox" id="wfBurst" ${v('burst', true) ? 'checked' : ''}> <b>Ráfaga al vencer</b> (recomendado: achica el hueco a ~1 s)</label>
+      <label title="Experimental: poco antes de que venza, reenvía cada orden con su mismo userSessionId. Si el cine extiende la retención, no hay hueco. El bot lo verifica solo y lo desactiva si no funciona.">
+        <input type="checkbox" id="wfRenew" ${v('renew', false) ? 'checked' : ''}> <b>Renovar antes de vencer</b> (experimental: si el cine lo permite, no hay hueco)</label>
+    </div>
+    <details class="adv" id="wfAdv">
+      <summary>Avanzado: hilos, ritmo y ráfaga</summary>
+      <div class="note" style="margin:0 0 10px">Estos valores salen del perfil elegido arriba; si cambias alguno, los jobs quedan como "ajustado".</div>
+      <div class="frow">
+        <div class="field"><label>Hilos por reserva</label><input type="number" id="wfThreads" min="1" max="6" value="${v('threads', 3)}" oninput="renderBlock()"></div>
+        <div class="field"><label>Máx. por orden</label><input type="number" id="wfPerOrder" min="1" max="50" value="${v('maxPerOrder', 10)}" oninput="renderBlock()"></div>
+        <div class="field"><label>Disparo</label>
+          <select id="wfFire" style="height:36px;border:1px solid var(--border);border-radius:4px;padding:0 8px" onchange="renderBlock()">
+            <option value="backup" ${v('fireMode', 'backup') === 'backup' ? 'selected' : ''}>Respaldo (si falla, el siguiente)</option>
+            <option value="all" ${v('fireMode', 'backup') === 'all' ? 'selected' : ''}>Todos a la vez</option>
+          </select></div>
+        <div class="field"><label>Consultar cartelera cada (s)</label>
+          <div class="range"><input type="number" id="wfMin" min="2" value="${sec('pollMinMs', 3000)}"> a <input type="number" id="wfMax" min="2" value="${sec('pollMaxMs', 5000)}"></div></div>
+        <div class="field"><label title="Cuando ya tiene todas sus funciones: revisión más espaciada, por si aparece una mejor">Luego, cada (s)</label><input type="number" id="wfSlow" min="10" value="${sec('slowPollMs', 60000)}"></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <div class="field"><label title="Antes de haber medido cuánto retiene el cine las butacas">Sin medición: revisar a los (s)</label><input type="number" id="wfInterval" min="5" value="${sec('intervalMs', 180000)}"></div>
+        <div class="field"><label title="Revisión extra mientras dura la retención (0 = no)">Complementaria cada (s)</label><input type="number" id="wfBaseline" min="0" value="${sec('baselineMs', 10000)}"></div>
+        <div class="field"><label title="Cuando la retención está por vencer, según lo medido">Ventana probable (s)</label>
+          <div class="range"><input type="number" id="wfWinMin" min="1" value="${sec('windowMinMs', 5000)}"> a <input type="number" id="wfWinMax" min="1" value="${sec('windowMaxMs', 10000)}"></div></div>
+        <div class="field"><label title="Tras un fallo o pasada la retención máxima medida">Reintento rápido (s)</label>
+          <div class="range"><input type="number" id="wfRetryMin" min="1" value="${sec('retryMinMs', 3000)}"> a <input type="number" id="wfRetryMax" min="1" value="${sec('retryMaxMs', 5000)}"></div></div>
+      </div>
+      <div class="frow" style="margin-top:8px">
+        <div class="field"><label>Ráfaga: desde (s antes)</label><input type="number" id="wfBurstLead" min="0" max="120" value="${sec('burstLeadMs', 8000)}"></div>
+        <div class="field"><label>cada (s)</label><input type="number" id="wfBurstEvery" min="0.5" max="60" step="0.5" value="${sec('burstIntervalMs', 1000)}"></div>
+        <div class="field"><label>hasta (s después)</label><input type="number" id="wfBurstSpan" min="1" max="600" value="${sec('burstSpanMs', 30000)}"></div>
+        <div class="field"><label>Renovar (s antes)</label><input type="number" id="wfRenewLead" min="5" max="600" value="${sec('renewLeadMs', 45000)}"></div>
+      </div>
+      <div class="note" style="margin-top:8px">Es el ritmo de cada función: los hilos se turnan dentro de él. La ráfaga se apunta al vencimiento medido (o a la retención que indiques).</div>
+    </details>
+    <details class="adv">
+      <summary>Cómo elige funciones y butacas</summary>
+      <div class="note">
+        <b>Funciones (máx. 3 por cine):</b> 1) la <b>primera función</b> disponible, siempre; 2) la primera en el <b>horario preferido</b>;
+        3) otra en el horario preferido pero <b>de otro día</b>. Si alguna no existe, la siguiente más próxima. Si luego aparece una función
+        que desplaza a otra, el job de la que queda fuera se elimina, <b>salvo que ya retenga butacas</b>: ese se mantiene y decides tú.<br>
+        <b>Butacas:</b> el bloque se ubica en cada sala real con el mismo centro y profundidad (si la sala es más chica, se recorta), probando
+        posiciones cercanas para quedarse con la de más butacas libres. Reserva las libres y reintenta las ocupadas en cada vuelta.<br>
+        <b>Órdenes e hilos:</b> las butacas se reparten en órdenes de hasta el máximo; si el cine rechaza ese tamaño, el bot lo ajusta solo.
+        Si una orden falla, se vuelve a mirar la sala al instante y se dispara con las que siguen libres.<br>
+        <b>Entrada:</b> si la función no tiene el código indicado, se usa otra "General" de esa función, y si no hay, la primera disponible.
+      </div>
+    </details>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-      <button class="btn btn-purple" onclick="createWatcher()">🔭 Iniciar vigía</button>
+      <button class="btn btn-purple" onclick="createWatcher()">${w ? '💾 Guardar cambios' : '🔭 Iniciar vigía'}</button>
+      ${w ? '<button class="btn btn-light" onclick="cancelEdit()">Cancelar</button>' : ''}
       <span class="form-err" id="wfErr"></span>
     </div>`;
+  renderBlock();
+  // Nuevo vigía: valores del perfil Preventa; cualquier cambio en Avanzado lo marca como "ajustado"
+  if (!w && profiles) wfPreset('preventa');
+  for (const [id] of Object.values(WF_FIELDS)) { $(id).addEventListener('input', renderWfProfile); $(id).addEventListener('change', renderWfProfile); }
+  renderWfProfile();
   try { await loadCinemas(); renderCinemaList(); }
   catch (e) { $('wfCines').innerHTML = `<div class="form-err" style="padding:8px 12px">No se pudieron cargar los cines: ${esc(e.message)}</div>`; }
+}
+
+// Perfiles (vienen del servidor): campo del formulario ↔ valor del perfil (ms → s)
+const WF_FIELDS = {
+  intervalMs: ['wfInterval', 1000], baselineMs: ['wfBaseline', 1000], windowMinMs: ['wfWinMin', 1000], windowMaxMs: ['wfWinMax', 1000],
+  retryMinMs: ['wfRetryMin', 1000], retryMaxMs: ['wfRetryMax', 1000], threads: ['wfThreads', 1], fireMode: ['wfFire', 0],
+  burst: ['wfBurst', 0], burstLeadMs: ['wfBurstLead', 1000], burstIntervalMs: ['wfBurstEvery', 1000], burstSpanMs: ['wfBurstSpan', 1000],
+};
+const PROFILE_NAMES = { preventa: '⚡ Preventa', normal: 'Normal', custom: 'Personalizado' };
+let profiles = null;
+
+function profileInfoHtml() {
+  if (!profiles) return '<div class="tip">Cargando…</div>';
+  return `<div class="tip">${Object.values(profiles).map(p => `<b>${esc(p.label)}</b><ul>${p.info.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`).join('')}
+    <span style="opacity:.75">Los jobs que crea un vigía usan el perfil del vigía (Preventa por defecto).</span></div>`;
+}
+function profileBadge(profile, diff = []) {
+  const p = profile in PROFILE_NAMES ? profile : 'custom';
+  return `<span class="prof prof-${p}" title="${esc(diff.length ? `Ajustado: ${diff.join(', ')}` : (profiles?.[p]?.info || []).join(' '))}">${PROFILE_NAMES[p]}${diff.length ? ' <small>· ajustado</small>' : ''}</span>`;
+}
+function wfDiff() {
+  const p = profiles?.[wf.profile];
+  if (!p) return [];
+  return Object.entries(WF_FIELDS).filter(([k, [id, mul]]) => {
+    const el = $(id);
+    const v = el.type === 'checkbox' ? el.checked : mul ? Math.round(parseFloat(el.value) * mul) : el.value;
+    return v !== p.values[k];
+  }).map(([k]) => k);
+}
+function renderWfProfile() {
+  if (!$('wfProfLine')) return;
+  for (const n of ['preventa', 'normal']) $(`wfP-${n}`)?.classList.toggle('on', wf.profile === n);
+  const d = wfDiff();
+  $('wfProfLine').innerHTML = d.length ? profileBadge(wf.profile, d) : '';
+}
+function wfPreset(name) {
+  const p = profiles?.[name];
+  if (!p) return;
+  for (const [k, [id, mul]] of Object.entries(WF_FIELDS)) {
+    const v = p.values[k];
+    typeof v === 'boolean' ? ($(id).checked = v) : ($(id).value = mul ? v / mul : v);
+  }
+  wf.profile = name;
+  renderBlock(); renderWfProfile();
+}
+
+function editWatcher(id) {
+  const w = wf.list.find(x => x.id === id);
+  if (!w) return;
+  renderWatchForm(w);
+  $('watchFormCard').scrollIntoView({ behavior: 'smooth' });
+}
+function cancelEdit() {
+  wf.editing = null;
+  if (state.movieId) renderWatchForm(); else $('watchFormCard').style.display = 'none';
+}
+
+// ── Editor del bloque: sala genérica de BLK_W × BLK_H, la fila 0 junto a la pantalla ──
+const BLK_W = 23, BLK_H = 14;
+const blk = { depth: 60, shift: 0 };   // centro: % de profundidad desde la pantalla; butacas a la derecha del centro
+const clampN = (v, lo, hi, d) => { const n = parseInt(v); return Math.min(hi, Math.max(lo, Number.isFinite(n) ? n : d)); };
+
+function renderBlock() {
+  if (!$('blkGrid')) return;
+  const W = clampN($('wfCols').value, 1, 30, 5), H = clampN($('wfRows').value, 1, 15, 1);
+  const w = Math.min(W, BLK_W), h = Math.min(H, BLK_H);
+  const mid = (BLK_W - 1) / 2;
+  const r0 = Math.min(BLK_H - h, Math.max(0, Math.round(blk.depth / 100 * (BLK_H - 1) - (h - 1) / 2)));
+  const c0 = Math.min(BLK_W - w, Math.max(0, Math.round(mid + blk.shift - (w - 1) / 2)));
+  let html = '';
+  for (let r = 0; r < BLK_H; r++) {
+    const letter = String.fromCharCode(65 + r);   // A = fila junto a la pantalla
+    html += `<div class="blk-row"><span class="blk-l">${letter}</span>`;
+    for (let c = 0; c < BLK_W; c++) {
+      const on = r >= r0 && r < r0 + h && c >= c0 && c < c0 + w;
+      html += `<div class="blk-c${on ? ' on' : ''}${c === Math.round(mid + blk.shift) && r === Math.round(blk.depth / 100 * (BLK_H - 1)) ? ' mid' : ''}" onclick="moveBlock(${r},${c})"></div>`;
+    }
+    html += `<span class="blk-l">${letter}</span></div>`;
+  }
+  $('blkGrid').innerHTML = html;
+  const total = W * H, per = clampN($('wfPerOrder').value, 1, 50, 10), th = clampN($('wfThreads').value, 1, 6, 3);
+  const orders = Math.ceil(total / per);
+  const all = $('wfFire')?.value === 'all';
+  const side = blk.shift === 0 ? 'centrado' : `${Math.abs(blk.shift)} butaca${Math.abs(blk.shift) > 1 ? 's' : ''} a la ${blk.shift > 0 ? 'derecha' : 'izquierda'}`;
+  const fromL = String.fromCharCode(65 + r0), toL = String.fromCharCode(65 + r0 + h - 1);
+  $('blkSum').innerHTML = `<b>${W}×${H} = ${total} butacas</b> por función<br>${side}, filas ${fromL === toL ? fromL : `${fromL}–${toL}`} en esta sala de ${BLK_H} filas (A junto a la pantalla)<br><span class="muted">En cada sala real se ubica a la misma profundidad (${blk.depth}%)</span><br>`
+    + `${orders} ${orders > 1 ? 'órdenes' : 'orden'} de hasta ${per} · ${th} hilo${th > 1 ? 's' : ''}`
+    + (all ? ` → ${orders * th} disparos al liberarse` : ` → ${orders} disparos al liberarse (+ respaldo si el cine falla)`);
+}
+
+function moveBlock(r, c) {
+  blk.depth = Math.round(r / (BLK_H - 1) * 100);
+  blk.shift = Math.round(c - (BLK_W - 1) / 2);
+  renderBlock();
 }
 
 function cinemasWithSessions() {
@@ -536,21 +745,39 @@ function toggleCinema(el) {
 
 function markCinemasWithSessions() { renderCinemaList(); }
 
+const sec = id => { const v = parseFloat($(id).value); return Number.isFinite(v) && v >= 0 ? Math.round(v * 1000) : null; };
+
 async function createWatcher() {
   $('wfErr').textContent = '';
   if (!wf.selected.size) { $('wfErr').textContent = 'Elige al menos un cine'; return; }
-  const m = movieInfo();
+  const w = wf.editing;
+  const m = w ? { id: w.movieId, title: w.movieTitle, posterUrl: w.posterUrl } : movieInfo();
   const body = {
     movieId: m.id, movieTitle: m.title, posterUrl: m.posterUrl,
     cinemas: cinemas.filter(c => wf.selected.has(c.id)).map(c => ({ id: c.id, name: c.name })),
-    pollMinMs: Math.round(parseFloat($('wfMin').value) * 1000), pollMaxMs: Math.round(parseFloat($('wfMax').value) * 1000),
-    seatCount: parseInt($('wfSeats').value), ticketCode: $('wfTicket').value.trim(),
+    pollMinMs: sec('wfMin') ?? 3000, pollMaxMs: sec('wfMax') ?? 5000, slowPollMs: sec('wfSlow') ?? 60000,
+    blockCols: parseInt($('wfCols').value), blockRows: parseInt($('wfRows').value), blockDepth: blk.depth, blockShift: blk.shift,
+    threads: parseInt($('wfThreads').value), maxPerOrder: parseInt($('wfPerOrder').value), ticketCode: $('wfTicket').value.trim(),
+    profile: wf.profile || 'preventa',
+    fireMode: $('wfFire').value, holdGuessMs: Math.round((parseFloat($('wfHoldGuess').value) || 0) * 60000),
+    burst: $('wfBurst').checked, renew: $('wfRenew').checked,
+    burstLeadMs: sec('wfBurstLead') ?? 8000, burstIntervalMs: sec('wfBurstEvery') ?? 1000, burstSpanMs: sec('wfBurstSpan') ?? 30000,
+    renewLeadMs: sec('wfRenewLead') ?? 45000,
+    intervalMs: sec('wfInterval') ?? 180000, baselineMs: sec('wfBaseline') ?? 10000,
+    windowMinMs: sec('wfWinMin') ?? 5000, windowMaxMs: sec('wfWinMax') ?? 10000,
+    retryMinMs: sec('wfRetryMin') ?? 3000, retryMaxMs: sec('wfRetryMax') ?? 5000,
     sessionsPerCinema: parseInt($('wfSessions').value), prefFrom: $('wfFrom').value, prefTo: $('wfTo').value,
   };
   try {
-    await api('/bot/watchers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (w) {
+      await post(`/bot/watchers/${w.id}`, { ...body, applyToJobs: $('wfApply').checked });
+      $('wfSub').textContent = '✓ Cambios guardados';
+      wf.editing = null;
+    } else {
+      await api('/bot/watchers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      $('wfSub').textContent = '✓ Vigía iniciado';
+    }
     wf.selected.clear(); renderCinemaList();
-    $('wfSub').textContent = '✓ Vigía iniciado';
     loadWatchers();
     $('watchersCard').scrollIntoView({ behavior: 'smooth' });
   } catch (e) { $('wfErr').textContent = e.message; }
@@ -562,6 +789,7 @@ const post = (path, body = {}) => api(path, { method: 'POST', headers: { 'Conten
 async function loadWatchers() {
   try {
     const [w, a] = await Promise.all([api('/bot/watchers'), api('/bot/alerts')]);
+    profiles = w.profiles || profiles;
     renderWatchers(w.watchers || []);
     renderAlerts(a.alerts || []);
   } catch {}
@@ -570,14 +798,15 @@ async function loadWatchers() {
 function jobState(j) {
   if (!j) return '<span class="st st-stop">Job eliminado</span>';
   if (!j.running)   return '<span class="st st-stop">Detenido</span>';
-  if (j.alert)      return '<span class="st st-alert">🔔 ¡Libres!</span>';
-  if (j.paused)     return '<span class="st st-pause">⏸ Pausado</span>';
+  if (j.alert)      return '<span class="st st-alert">🔔 ¡Libres para ti!</span>';
+  if (j.paused)     return '<span class="st st-pause">⏸ Pausado · avisa al liberarse</span>';
   if (j.mode === 'hold') return '<span class="st st-hold">Retenidos</span>';
   if (j.mode === 'retry') return '<span class="st st-try">Reintentando</span>';
   return `<span class="st st-run">${j.successes ? 'Reservando' : 'Intentando'}</span>`;
 }
 
 function renderWatchers(list) {
+  wf.list = list;
   const running = list.filter(w => w.running).length;
   $('watchersSub').textContent = list.length ? `${list.length} vigía${list.length > 1 ? 's' : ''} · ${running} activo${running !== 1 ? 's' : ''}` : '';
   if (!list.length) {
@@ -588,7 +817,7 @@ function renderWatchers(list) {
     const jobsOf = w.sessions.filter(x => x.job);
     const activeJobs = jobsOf.filter(x => x.job.running && !x.job.paused);
     const st = !w.running ? '<span class="st st-stop">Detenido</span>'
-      : w.slowMode ? '<span class="st st-found">✓ Funciones reservadas · revisa cada 5 min</span>'
+      : w.slowMode ? `<span class="st st-found">✓ Funciones reservadas · revisa cada ${(w.slowPollMs || 60000) / 1000} s</span>`
       : w.foundAt ? '<span class="st st-found">🎉 Funciones detectadas · faltan cines</span>'
       : '<span class="st st-run">Vigilando…</span>';
     const next = w.running && w.nextAt ? ` · próxima en ${Math.max(0, Math.round((w.nextAt - Date.now()) / 1000))} s` : '';
@@ -596,7 +825,7 @@ function renderWatchers(list) {
       <tr>
         <td><b>${esc(x.cinemaName)}</b><br><span class="muted">${x.showtime ? esc(`${fmtDate(x.showtime.slice(0, 10))} ${fmtTime(x.showtime)}`) : esc(x.key)}${x.screenName ? ' · ' + esc(x.screenName) : ''}</span></td>
         <td>${x.status === 'job'
-          ? `${jobState(x.job)} <span class="muted">${esc((x.seats || []).join(' '))}</span>${x.job ? `<br><a href="/" class="muted">${esc(x.job.name)}</a>` : ''}`
+          ? `${jobState(x.job)} <span class="muted" title="${esc((x.seats || []).join(' '))}">${(x.seats || []).length > 8 ? `${x.seats.length} butacas` : esc((x.seats || []).join(' '))}</span>${x.job ? `<br><a href="/" class="muted">${esc(x.job.name)}</a>` : ''}`
           : `<span class="st st-err">Pendiente</span> <span class="muted">${esc(x.msg || '')}</span>`}</td>
       </tr>`).join('');
     return `
@@ -604,9 +833,10 @@ function renderWatchers(list) {
         <div class="whead">
           ${w.posterUrl ? `<img class="poster" src="${esc(w.posterUrl)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="poster"></div>'}
           <div class="wmain">
-            <div class="wtitle">${esc(w.movieTitle)} ${st}</div>
+            <div class="wtitle">${esc(w.movieTitle)} ${profileBadge(w.profile || 'preventa', w.profileDiff || [])} ${st}</div>
             <div class="wline">Cines: <b>${w.cinemas.map(c => esc(c.name)).join(', ')}</b></div>
-            <div class="wline">máx. ${w.sessionsPerCinema} funciones por cine (primera + ${esc(w.prefFrom)}–${esc(w.prefTo)}) · ${w.seatCount} asientos juntos · entrada ${esc(w.ticketCode)}</div>
+            <div class="wline">máx. ${w.sessionsPerCinema} funciones por cine (primera + ${esc(w.prefFrom)}–${esc(w.prefTo)}) · bloque ${w.blockCols || w.seatCount}×${w.blockRows || 1} · ${w.threads || 1} hilo${(w.threads || 1) > 1 ? 's' : ''} · entrada ${esc(w.ticketCode)}</div>
+            ${w.retryMinMs ? `<div class="wline">Ritmo de los jobs: sin medición ${w.intervalMs / 1000} s · complementaria ${w.baselineMs ? w.baselineMs / 1000 + ' s' : 'no'} · ventana ${w.windowMinMs / 1000}–${w.windowMaxMs / 1000} s · reintento ${w.retryMinMs / 1000}–${w.retryMaxMs / 1000} s</div>` : ''}
             <div class="wline">Cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s · ${w.checks} consultas${w.lastCheckAt ? ` · última ${fmtClock(w.lastCheckAt)}` : ''}${next}</div>
             ${w.lastError ? `<div class="wline" style="color:#c02c4b">⚠ ${esc(w.lastError)}</div>` : ''}
             ${w.running && !w.foundAt ? `<div class="wline">${!w.movieSeenAt
@@ -619,6 +849,7 @@ function renderWatchers(list) {
               : `<button class="btn btn-green btn-sm" onclick="watcherAction('${w.id}','start')">▶ Iniciar</button>`}
             ${activeJobs.length ? `<button class="btn btn-pause btn-sm" title="Sus jobs dejan de reservar y solo avisan" onclick="pauseWatcherJobs('${w.id}', true)">⏸ Pausar ${activeJobs.length} job${activeJobs.length > 1 ? 's' : ''}</button>` : ''}
             ${jobsOf.some(x => x.job.running && x.job.paused) ? `<button class="btn btn-light btn-sm" onclick="pauseWatcherJobs('${w.id}', false)">▶ Quitar pausa</button>` : ''}
+            <button class="btn btn-light btn-sm" onclick="editWatcher('${w.id}')">✏️ Editar</button>
             <button class="btn btn-light btn-sm" onclick="watcherAction('${w.id}','delete')">Eliminar</button>
           </div>
         </div>
@@ -638,32 +869,47 @@ async function watcherAction(id, action) {
 async function pauseWatcherJobs(id, paused) {
   const w = (state.watchers || []).find(x => x.id === id);
   const ids = (w?.sessions || []).filter(x => x.job?.running && x.job.paused !== paused).map(x => x.job.id);
-  if (paused && !confirm(`¿Pausar ${ids.length} jobs? Dejarán de reservar y solo avisarán cuando las butacas estén libres.`)) return;
+  if (paused && !confirm(`¿Pausar ${ids.length} jobs? Todas sus butacas quedan liberadas para ti: el bot deja de tomarlas y te avisa apenas se liberen.`)) return;
   await Promise.all(ids.map(j => post(`/bot/jobs/${j}/${paused ? 'pause' : 'resume'}`).catch(() => {})));
   loadWatchers();
 }
 
-// ── Aviso de butacas libres (jobs en pausa) ───────────────────────────────────
+// ── Aviso: butacas liberadas para ti que quedaron libres (o que se ocuparon) ───
 const alertSeen = new Set();
 let simAlert = null, lastAlerts = [];
 function renderAlerts(alerts) {
   lastAlerts = alerts;
   alerts = simAlert ? [simAlert, ...alerts] : alerts;
+  const where = a => `${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(fmtDate(a.showtime.slice(0, 10)))} ${fmtTime(a.showtime)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''}`;
   $('alerts').innerHTML = alerts.map(a => a.sim ? simAlertHtml(a) : `
-    <div class="alert-box">
+    ${a.seats.length ? `<div class="alert-box">
       <div class="alert-ico">🔔</div>
       <div class="alert-main">
-        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo</div>
-        <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(fmtDate(a.showtime.slice(0, 10)))} ${fmtTime(a.showtime)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
+        <div class="alert-title">¡Tus butacas están libres! Cómpralas ya desde otro dispositivo</div>
+        <div class="alert-sub">${where(a)} · libres desde las ${fmtClock(a.at)}</div>
         <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm solid" onclick="alertAction('${a.jobId}','resume')" title="Quita la pausa: el bot las reserva ahora">🤖 Que las reserve el bot</button>
-        <button class="btn btn-sm" onclick="alertAction('${a.jobId}','ack')">✕ Descartar</button>
+        <button class="btn btn-sm solid" onclick="alertAction('${a.jobId}','bought')">✅ Ya las compré</button>
+        <button class="btn btn-sm" onclick="alertAction('${a.jobId}','take')">🔒 Que el bot las tome</button>
+        <button class="btn btn-sm" onclick="alertAction('${a.jobId}','ack')">🔕 Silenciar</button>
       </div>
-    </div>`).join('');
-  const fresh = alerts.filter(a => !alertSeen.has(`${a.jobId}|${a.at}`));
-  for (const a of fresh) { alertSeen.add(`${a.jobId}|${a.at}`); announce(`${a.cinemaName} · ${a.movieTitle}`, 0, `Asientos libres: ${a.seats.join(', ')}`); }
+    </div>` : ''}
+    ${a.gone?.length ? `<div class="alert-box" style="background:linear-gradient(135deg,#7a5c00,#b07d00);animation:none">
+      <div class="alert-ico" style="animation:none">ℹ️</div>
+      <div class="alert-main">
+        <div class="alert-title">Ya no están libres: ¿las compraste?</div>
+        <div class="alert-sub">${where(a)}</div>
+        <div class="alert-seats">${a.gone.map(x => `<span style="color:#7a5c00">${esc(x)}</span>`).join('')}</div>
+      </div>
+      <div class="alert-actions">
+        <button class="btn btn-sm solid" style="color:#7a5c00" onclick="alertAction('${a.jobId}','bought','gone')">✅ Sí, compradas</button>
+        <button class="btn btn-sm" onclick="alertAction('${a.jobId}','take','gone')">🔒 Que el bot las vuelva a buscar</button>
+        <button class="btn btn-sm" onclick="alertAction('${a.jobId}','ack','gone')">🔕 Silenciar</button>
+      </div>
+    </div>` : ''}`).join('');
+  const fresh = alerts.filter(a => (a.sim || a.seats.length) && !alertSeen.has(`${a.jobId}|${a.seats.join()}|${a.at}`));
+  for (const a of fresh) { alertSeen.add(`${a.jobId}|${a.seats.join()}|${a.at}`); announce(`${a.cinemaName} · ${a.movieTitle}`, 0, `¡Libres para ti!: ${a.seats.join(', ')}`); }
 }
 
 // Simulador: el mismo aviso (banda, sonido y notificación) con datos de un job de un vigía, sin tocar el servidor
@@ -672,10 +918,10 @@ function simAlertHtml(a) {
     <div class="alert-box">
       <div class="alert-ico">🔔</div>
       <div class="alert-main">
-        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo <span style="font-size:.7rem;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:3px;vertical-align:middle">SIMULACIÓN</span></div>
+        <div class="alert-title">¡Tus butacas están libres! Cómpralas ya desde otro dispositivo <span style="font-size:.7rem;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:3px;vertical-align:middle">SIMULACIÓN</span></div>
         <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(fmtDate(a.showtime.slice(0, 10)))} ${fmtTime(a.showtime)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
         <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
-        <div class="alert-sub" style="margin-top:8px">Así aparecerá (aquí y en el panel) cuando un job <b>en pausa</b> vea sus butacas libres. Los botones reales serán “🤖 Que las reserve el bot” y “✕ Descartar”.</div>
+        <div class="alert-sub" style="margin-top:8px">Así aparecerá (aquí, en el panel y por Telegram) cuando se liberen butacas que liberaste para ti. Los botones reales serán “✅ Ya las compré”, “🔒 Que el bot las tome” y “🔕 Silenciar”.</div>
       </div>
       <div class="alert-actions">
         <button class="btn btn-sm solid" onclick="closeSimAlert()">✕ Cerrar simulación</button>
@@ -691,7 +937,7 @@ async function simulateAlert() {
     sim: true, jobId: 'sim', at: Date.now(),
     cinemaName: x?.cinemaName || w?.cinemas[0]?.name || 'CP Ejemplo', movieTitle: w?.movieTitle || 'Película de ejemplo',
     showtime: x?.showtime || null, screenName: x?.screenName || 'Sala 1',
-    seats: x?.seats?.length ? x.seats : ['F8', 'F9', 'F10', 'F11', 'F12'],
+    seats: x?.seats?.length ? x.seats.slice(0, 3) : ['F8', 'F9', 'F10'], gone: [],
   };
   renderAlerts(lastAlerts);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -699,8 +945,11 @@ async function simulateAlert() {
 
 function closeSimAlert() { simAlert = null; renderAlerts(lastAlerts); }
 
-async function alertAction(id, action) {
-  await post(`/bot/jobs/${id}/${action}`).catch(() => {});
+async function alertAction(id, action, which) {
+  const a = lastAlerts.find(x => x.jobId === id);
+  if (!a) return;
+  const labels = which === 'gone' ? a.gone : a.seats;
+  await post('/bot/seats', { cinemaId: a.cinemaId, sessionId: a.sessionId, labels, action }).catch(e => alert(e.message));
   loadWatchers();
 }
 

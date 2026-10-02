@@ -258,6 +258,30 @@ aside input:focus { outline: none; border-color: var(--purple); }
   cursor: pointer; transition: border-color .15s, box-shadow .15s; position: relative; min-width: 0;
 }
 .job-card:hover { border-color: #cdbff3; }
+/* Grupos: película + cine, con sus funciones */
+.jobs-groups { display: flex; flex-direction: column; gap: 12px; padding: 0 20px 20px; }
+.jgroup { border: 1px solid var(--border); border-radius: var(--radius); background: #fbfbfe; }
+.jg-head { display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; user-select: none; }
+.jg-head:hover { background: #f5f3fd; }
+.jg-arrow { width: 14px; color: var(--muted); font-size: .8rem; transition: transform .15s; }
+.jgroup.closed .jg-arrow { transform: rotate(-90deg); }
+.jg-head img { width: 34px; height: 50px; object-fit: cover; border-radius: 3px; background: var(--border); }
+.jg-main { flex: 1; min-width: 0; }
+.jg-title { font-weight: 700; font-size: .95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.jg-sub { font-size: .76rem; color: var(--muted); margin-top: 2px; }
+.jg-sub b { color: var(--text); font-weight: 500; }
+.jg-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.jgroup .jobs-grid { padding: 0 14px 14px; grid-template-columns: repeat(auto-fill, minmax(min(330px, 100%), 1fr)); }
+.jgroup.closed .jobs-grid { display: none; }
+.jgroup .job-card { background: var(--card); }
+/* Hilos dentro de la tarjeta */
+.jc-hilos-t { font-size: .76rem; color: var(--purple); cursor: pointer; user-select: none; margin-top: 2px; }
+.jc-hilos-t:hover { text-decoration: underline; }
+.jc-hilos { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; padding: 6px 8px; background: #f6f4fd; border-radius: 4px; }
+.hrow { display: flex; gap: 8px; align-items: center; font-size: .74rem; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.hrow b { color: var(--text); font-weight: 500; }
+.hnum { width: 18px; height: 18px; border-radius: 50%; background: #e4def8; color: var(--purple); font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: .7rem; }
+.hnum.next { background: var(--purple); color: #fff; }
 .job-card.sel { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(143,95,232,.15); }
 .job-card img { width: 52px; height: 76px; object-fit: cover; border-radius: 4px; background: var(--border); flex-shrink: 0; }
 .jc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
@@ -305,10 +329,10 @@ aside input:focus { outline: none; border-color: var(--purple); }
 
 /* ── Inferior: detalles + consola ── */
 .bottom-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 20px; align-items: start; }
-.job-table { width: 100%; border-collapse: collapse; }
+.job-table { width: 100%; border-collapse: collapse; table-layout: fixed; }   /* fijo: el texto largo se ajusta, no ensancha la tabla */
 .job-table td { padding: 10px 20px; border-bottom: 1px solid var(--border); font-size: .83rem; vertical-align: top; }
 .job-table tr:last-child td { border-bottom: none; }
-.job-table td:first-child { color: var(--muted); width: 36%; }
+.job-table td:first-child { color: var(--muted); width: 30%; }
 .job-table td:last-child { word-break: break-word; }
 .mono { font-family: 'Roboto Mono', monospace; font-size: .76rem; }
 
@@ -353,6 +377,152 @@ aside input:focus { outline: none; border-color: var(--purple); }
 .hist-card.expanded { position: fixed; top: 60px; left: var(--side-w); right: 0; bottom: 0; z-index: 20; border-radius: 0; }
 .hist-card.expanded .hist-wrap { max-height: none; flex: 1; }
 
+/* ── Análisis ── */
+.ana-tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.ana-tabs button { border: none; background: none; padding: 10px 12px; font-size: .82rem; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap; }
+.ana-tabs button:hover { color: var(--text); }
+.ana-tabs button.on { color: var(--purple); border-bottom-color: var(--purple); font-weight: 500; }
+.ana-body { flex: 1; min-height: 0; }
+.ana-pane { padding: 16px 20px 20px; max-height: 620px; overflow: auto; }
+.ana-pane-flush { padding: 0; }
+.hist-card.expanded .ana-pane { max-height: none; }
+.ana-subhead { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid var(--border); }
+.ana-subhead .card-sub { flex: 1; }
+.ana-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ana-tiles .stat { min-width: 0; }
+.stat .stat-sub { font-size: .7rem; color: var(--muted); margin-top: 2px; }
+.ana-empty { color: var(--muted); font-size: .85rem; text-align: center; padding: 30px 10px; }
+.ana-note { font-size: .74rem; color: var(--muted); margin-top: 10px; line-height: 1.45; }
+.ana-chips { display: flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.ana-chips button { border: 1px solid var(--border); background: var(--card); border-radius: 99px; padding: 4px 11px; font-size: .76rem; cursor: pointer; color: var(--text); }
+.ana-chips button.on { border-color: var(--purple); color: var(--purple); background: #f6f2fe; font-weight: 500; }
+.ana-list { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; }
+.ana-list span { color: var(--muted); }
+.ana-table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: .8rem; }
+.ana-table th { text-align: left; font-size: .7rem; font-weight: 500; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--border); }
+.ana-table td { padding: 8px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.ana-table tr:not(:first-child) { cursor: pointer; } .ana-table tr:not(:first-child):hover td { background: #fafbfd; }
+.ana-meter { display: inline-block; width: 70px; height: 6px; background: #dbe8fb; border-radius: 3px; overflow: hidden; vertical-align: middle; margin-right: 6px; }
+.ana-meter i { display: block; height: 100%; background: #2a78d6; }
+.ana-events { display: flex; flex-direction: column; }
+.ev { display: grid; grid-template-columns: 20px 150px 1fr; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: .8rem; align-items: start; }
+.ev time { color: var(--muted); font-variant-numeric: tabular-nums; font-size: .74rem; white-space: nowrap; }
+.ev-i { text-align: center; font-weight: 700; color: var(--muted); }
+.ev-success .ev-i { color: #0ca30c; } .ev-error .ev-i { color: #d03b3b; } .ev-warn .ev-i { color: var(--orange); }
+/* Gráficos */
+svg.vz { display: block; overflow: visible; font-family: inherit; }
+.vz-ax { font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+.vz-lbl { font-size: 12px; fill: var(--text); }
+.vz-end { font-size: 11.5px; fill: var(--text); font-weight: 500; }
+.vz-title { font-size: .78rem; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+.vz-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .74rem; color: #55586c; margin-bottom: 8px; }
+.vz-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.vz-legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.vz-legend i.ln { height: 2px; width: 14px; border-radius: 1px; }
+.vz-tip { position: fixed; z-index: 90; display: none; background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: .76rem;
+  box-shadow: 0 6px 20px rgba(20,20,40,.14); pointer-events: none; min-width: 120px; }
+.vz-tip-h { color: var(--muted); margin-bottom: 4px; font-size: .72rem; }
+.vz-tip-r { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.vz-tip-r i { width: 12px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+.vz-tip-r b { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.vz-tip-r span { color: #55586c; }
+
+/* Barra de estado */
+.statusbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.stat b { font-size: 1.05rem; font-weight: 700; }
+.stat span { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.stat.good b { color: #1c9a54; } .stat.warn b { color: var(--orange); } .stat.bad b { color: var(--pink); }
+.stat .stat-err { font-size: .72rem; color: var(--pink); text-transform: none; letter-spacing: 0; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Mini mapa del bloque en la tarjeta */
+.mini { display: inline-flex; flex-direction: column; gap: 2px; margin: 4px 0 2px; padding: 4px; background: #f6f7fb; border-radius: 4px; }
+.mini-r { display: flex; gap: 2px; }
+.mini i { width: 7px; height: 6px; border-radius: 1.5px; background: #d9dce6; display: block; }
+.mini i.held { background: var(--green); } .mini i.free { background: #fff; outline: 1px solid #c9cedb; outline-offset: -1px; }
+.mini i.taken { background: var(--pink); } .mini i.gap { visibility: hidden; }
+.mini i.released { background: var(--yellow); } .mini i.forme { background: var(--cyan); animation: pulse 1s infinite; } .mini i.gone { background: #6f6f85; }
+.schip.released { background: rgba(255,193,0,.18); color: #946c00; }
+.schip.forme { background: var(--cyan); color: #fff; font-weight: 700; }
+.schip.gone { background: #e4e5ec; color: #55586c; }
+/* Perfil (Preventa / Normal) e info */
+.prof { display: inline-flex; align-items: center; gap: 4px; font-size: .68rem; font-weight: 700; padding: 2px 7px; border-radius: 99px; white-space: nowrap; letter-spacing: .2px; }
+.prof-preventa { background: linear-gradient(135deg, #f96b1a, #e8114b); color: #fff; }
+.prof-normal { background: #e6e9f0; color: #4b4f63; }
+.prof-custom { background: #efe9fd; color: var(--purple); }
+.prof small { font-weight: 500; opacity: .85; }
+.info-tip { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 17px; height: 17px; border-radius: 50%;
+  background: var(--side-2); color: var(--side-text); border: 1px solid var(--side-line); font-size: .7rem; font-weight: 700; cursor: help; flex-shrink: 0; font-style: normal; }
+.info-tip.light { background: #eef0f5; color: var(--muted); border-color: var(--border); }
+.info-tip .tip { display: none; position: absolute; z-index: 60; top: 22px; left: -10px; width: 330px; background: #1f1f2e; color: #e8e8f0; border-radius: 6px;
+  padding: 10px 12px; font-size: .74rem; font-weight: 400; line-height: 1.45; text-align: left; box-shadow: 0 8px 24px rgba(0,0,0,.3); cursor: default; }
+.info-tip:hover .tip, .info-tip:focus .tip { display: block; }
+.info-tip .tip b { color: #fff; }
+.info-tip .tip ul { margin: 4px 0 8px 16px; padding: 0; }
+.info-tip .tip li { margin: 2px 0; }
+.presets .info-tip .tip { left: auto; right: -4px; width: 250px; }   /* dentro del ancho de la barra lateral */
+.presets .btn.on { border-color: var(--purple); box-shadow: 0 0 0 2px rgba(143,95,232,.35); }
+.prof-line { display: flex; align-items: center; gap: 6px; margin: 6px 0 2px; font-size: .74rem; color: var(--side-text); }
+/* Detalle de hilos en tiempo real */
+details.hilos-det > summary { cursor: pointer; color: var(--purple); font-weight: 500; user-select: none; list-style: none; }
+details.hilos-det > summary::before { content: '▸ '; } details.hilos-det[open] > summary::before { content: '▾ '; }
+.hd-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.hd { border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; }
+.hd.next { border-color: var(--purple); background: #faf8ff; }
+.hd-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .78rem; }
+.hd-head .hd-eta { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--muted); }
+.hbar { height: 6px; background: #eceef5; border-radius: 3px; overflow: hidden; margin: 6px 0 4px; }
+.hbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--cyan), var(--purple)); border-radius: 3px; }
+.hd.next .hbar i { background: linear-gradient(90deg, var(--purple), var(--pink)); }
+.hbar.burst i { background: var(--orange); }
+.hd-rec { display: flex; flex-direction: column; gap: 2px; font-size: .72rem; color: var(--muted); }
+.hd-rec div { display: flex; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hd-rec time { font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.hd-rec .k { flex-shrink: 0; font-weight: 500; }
+.hd-rec .k.reserved, .hd-rec .k.partial { color: #1c9a54; } .hd-rec .k.failed { color: var(--pink); } .hd-rec .k.hold { color: #0e8f97; }
+
+/* Ventana "Liberar butacas" */
+.seats-top { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.seats-top select { height: 36px; border: 1px solid var(--border); border-radius: 4px; padding: 0 10px; min-width: 320px; max-width: 100%; }
+.hint-dark { font-size: .78rem; color: var(--muted); }
+.seats-map-wrap { overflow-x: auto; padding: 8px 0; }
+.sm-screen { width: 70%; height: 6px; margin: 0 auto 4px; border-radius: 0 0 50% 50%; background: linear-gradient(90deg, var(--cyan), var(--purple)); }
+.sm-screen-l { text-align: center; font-size: .65rem; letter-spacing: 2px; color: var(--muted); margin-bottom: 10px; }
+.sm-rows { display: flex; flex-direction: column; gap: 4px; align-items: center; min-width: max-content; }
+.sm-row { display: flex; gap: 4px; align-items: center; }
+.sm-lbl { width: 18px; text-align: center; font-size: .7rem; color: var(--muted); }
+.sm-seat { width: 22px; height: 20px; border-radius: 5px 5px 3px 3px; border: 1px solid #c9cedb; background: #fff; font-size: .55rem; display: inline-flex; align-items: center; justify-content: center; color: transparent; }
+.sm-seat.empty { visibility: hidden; }
+.sm-seat.occ { background: #d9dce6; border-color: #d9dce6; }
+.sm-seat.held { background: var(--green); border-color: var(--green); }
+.sm-seat.released { background: var(--yellow); border-color: var(--yellow); }
+.sm-seat.forme { background: var(--cyan); border-color: var(--cyan); animation: pulse 1s infinite; }
+.sm-seat.gone { background: #6f6f85; border-color: #6f6f85; }
+.sm-seat.tgt { cursor: pointer; color: rgba(255,255,255,.95); }
+.sm-seat.tgt:hover { outline: 2px solid var(--purple); }
+.sm-seat.sel { outline: 3px solid var(--purple); outline-offset: 1px; }
+.seats-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: .74rem; color: var(--muted); margin: 8px 0; }
+.seats-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.seats-legend .sm-seat { width: 14px; height: 12px; }
+.seats-legend .sm-seat.sel { outline-width: 2px; }
+.seats-actions, .seats-watch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.seats-watch { font-size: .82rem; padding: 8px 10px; background: #f6f7fb; border-radius: 6px; }
+.seats-watch input[type=number] { width: 64px; height: 30px; border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; }
+.rel-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: .82rem; }
+.rel-table td, .rel-table th { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+.rel-table th { font-size: .7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; }
+
+/* Órdenes */
+.orders-list { display: flex; flex-direction: column; gap: 4px; }
+.ord-row { display: flex; gap: 8px; align-items: center; font-size: .78rem; }
+.ord-row .mono { color: var(--muted); }
+/* Editor: presets y avanzado */
+.presets { display: flex; gap: 6px; margin-bottom: 4px; }
+.presets .btn { flex: 1; padding: 6px 4px; font-size: .74rem; }
+details.adv { margin-top: 10px; border-top: 1px solid var(--side-line); padding-top: 8px; }
+details.adv > summary { cursor: pointer; font-size: .78rem; color: var(--side-text); list-style: none; user-select: none; }
+details.adv > summary::before { content: '▸ '; } details.adv[open] > summary::before { content: '▾ '; }
+.side-select { width: 100%; height: 34px; background: var(--side-2); color: var(--side-text); border: 1px solid var(--side-line); border-radius: 4px; padding: 0 8px; }
+
 @media (max-width: 1150px) {
   .filters { grid-template-columns: 1fr 1fr 1fr; }
   .bottom-grid, .config-grid { grid-template-columns: 1fr; }
@@ -366,6 +536,9 @@ aside input:focus { outline: none; border-color: var(--purple); }
   .sess span { display: none; }
   .hist-card.expanded { left: 0; }
   .pw-add { grid-template-columns: 1fr; }
+  .jobs-groups { padding: 0 10px 14px; }
+  .jg-head { flex-wrap: wrap; }
+  .stat { min-width: calc(50% - 4px); }
 }
 </style>
 </head>
@@ -392,25 +565,62 @@ aside input:focus { outline: none; border-color: var(--purple); }
 
   <div class="side-sec">
     <div class="side-head">Automatización</div>
-    <label class="check-row" style="margin-top:0" title="Mide cuánto retiene el cine las butacas y aprende el rango (mínimo–máximo). Antes del mínimo revisa poco; dentro del rango, más seguido; pasado el máximo, reintentos rápidos. Si el cine informa la hora de vencimiento, usa esa hora.">
-      <input type="checkbox" id="adaptive" checked> Espera adaptativa (aprende el rango de retención)
+    <div class="presets">
+      <button class="btn btn-light" id="presetBtn-preventa" onclick="applyPreset('preventa')">⚡ Preventa</button>
+      <button class="btn btn-light" id="presetBtn-normal" onclick="applyPreset('normal')">Normal</button>
+      <span class="info-tip" tabindex="0" id="profileInfo">i</span>
+    </div>
+    <div class="prof-line" id="profileLine"></div>
+    <div class="hint" id="presetHint"></div>
+    <label class="check-row" title="Unos segundos antes de que venza la retención (según lo medido), revisa cada segundo y re-reserva en cuanto se libera. Es lo que achica el hueco en que otros pueden comprar tus butacas.">
+      <input type="checkbox" id="burst" checked> Ráfaga al vencer (achica el hueco)
     </label>
-    <div class="side-label">Sin mediciones aún: revisar a los (segundos)</div>
-    <input type="number" id="intervalSec" value="600" min="5" max="86400">
-    <div class="side-label">Revisión complementaria cada (segundos, 0 = no)</div>
-    <input type="number" id="baselineSec" value="60" min="0" max="3600">
-    <div class="side-label">Ventana probable de liberación: revisar entre (segundos)</div>
-    <div class="pair">
-      <input type="number" id="winMin" value="30" min="5" max="3600">
-      <span>y</span>
-      <input type="number" id="winMax" value="60" min="5" max="3600">
-    </div>
-    <div class="side-label">Reintento rápido (tras un fallo o pasada la retención máxima)</div>
-    <div class="pair">
-      <input type="number" id="retryMin" value="10" min="5" max="3600">
-      <span>y</span>
-      <input type="number" id="retryMax" value="20" min="5" max="3600">
-    </div>
+    <label class="check-row" title="Experimental: poco antes de que venza, reenvía cada orden con su mismo userSessionId. Si el cine extiende la retención, no hay hueco. El bot lo verifica solo y lo desactiva si no funciona.">
+      <input type="checkbox" id="renew"> Renovar antes de vencer (experimental)
+    </label>
+    <div class="side-label">Retención del cine, si la conoces (minutos; vacío = medirla)</div>
+    <input type="number" id="holdGuessMin" min="0" max="180" step="0.5" placeholder="p. ej. 10">
+    <details class="adv" id="advBox">
+      <summary>Avanzado: hilos, ritmo y ráfaga</summary>
+      <div class="side-label" title="Hilos por reserva y máximo de butacas por orden: más butacas se reparten en varias órdenes">Hilos (balas) · máx. butacas por orden</div>
+      <div class="pair">
+        <input type="number" id="threads" value="3" min="1" max="6" title="Hilos por reserva">
+        <span>·</span>
+        <input type="number" id="maxPerOrder" value="10" min="1" max="50" title="Butacas por orden">
+      </div>
+      <div class="side-label">Disparo</div>
+      <select class="side-select" id="fireMode">
+        <option value="backup">Respaldo: un hilo por orden; si el cine da error, el siguiente al instante</option>
+        <option value="all">Todos a la vez: cada orden con todos los hilos</option>
+      </select>
+      <label class="check-row" title="Mide cuánto retiene el cine las butacas y aprende el rango (mínimo–máximo).">
+        <input type="checkbox" id="adaptive" checked> Espera adaptativa (aprende el rango de retención)
+      </label>
+      <div class="side-label">Sin mediciones aún: revisar a los (segundos)</div>
+      <input type="number" id="intervalSec" value="600" min="5" max="86400">
+      <div class="side-label">Revisión complementaria cada (segundos, 0 = no)</div>
+      <input type="number" id="baselineSec" value="60" min="0" max="3600">
+      <div class="side-label">Ventana probable de liberación: revisar entre (segundos)</div>
+      <div class="pair">
+        <input type="number" id="winMin" value="30" min="1" max="3600">
+        <span>y</span>
+        <input type="number" id="winMax" value="60" min="1" max="3600">
+      </div>
+      <div class="side-label">Reintento rápido (tras un fallo o pasada la retención máxima)</div>
+      <div class="pair">
+        <input type="number" id="retryMin" value="10" min="1" max="3600">
+        <span>y</span>
+        <input type="number" id="retryMax" value="20" min="1" max="3600">
+      </div>
+      <div class="side-label">Ráfaga: desde (s antes) · cada (s) · hasta (s después)</div>
+      <div class="pair">
+        <input type="number" id="burstLead" value="8" min="0" max="120" step="1">
+        <input type="number" id="burstEvery" value="1" min="0.5" max="60" step="0.5">
+        <input type="number" id="burstSpan" value="30" min="1" max="600" step="1">
+      </div>
+      <div class="side-label">Renovar (s antes del vencimiento)</div>
+      <input type="number" id="renewLead" value="45" min="5" max="600">
+    </details>
     <div class="side-label">Fin del job (por defecto: inicio de la función + 20 min)</div>
     <div class="pair">
       <input type="datetime-local" id="endTime" onchange="updateEndHint()">
@@ -437,6 +647,43 @@ aside input:focus { outline: none; border-color: var(--purple); }
   </header>
 
   <div class="alerts" id="alerts" style="position:sticky;top:60px;z-index:25;padding:0 24px"></div>
+
+  <!-- ═══════════════ LIBERAR BUTACAS (modal) ═══════════════ -->
+  <div class="modal-backdrop" id="seatsModal" onclick="if (event.target === this) closeSeats()">
+  <section class="modal" role="dialog" aria-modal="true" aria-labelledby="seatsTitle" style="max-width:1100px">
+    <div class="modal-head">
+      <div class="card-title" id="seatsTitle">🎟️ Liberar butacas para comprarlas</div>
+      <button class="modal-close" onclick="closeSeats()" title="Cerrar">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="seats-top">
+        <select id="seatsFn" onchange="seatsUI.sel.clear(); loadSeatsMap()"></select>
+        <span class="hint-dark" id="seatsSub"></span>
+      </div>
+      <div class="hint-dark" style="margin:6px 0 10px">Marca butacas de tu bloque y pulsa <b>Liberar</b>: todos los jobs de esta función dejan de tomarlas
+        (y de renovar sus órdenes). Cuando venza la orden del bot y queden libres, el primero que lo note te avisa para que las compres desde otro dispositivo.</div>
+      <div id="seatsMap" class="seats-map-wrap"></div>
+      <div class="seats-legend">
+        <span><i class="sm-seat held"></i>Retenida por el bot</span><span><i class="sm-seat released"></i>Liberada: esperando</span>
+        <span><i class="sm-seat forme"></i>¡Libre para ti!</span><span><i class="sm-seat gone"></i>Se ocupó</span>
+        <span><i class="sm-seat occ"></i>Ocupada</span><span><i class="sm-seat"></i>Libre (fuera del bloque)</span><span><i class="sm-seat sel"></i>Seleccionada</span>
+      </div>
+      <div class="seats-actions">
+        <span id="seatsSelTxt" class="hint-dark">Ninguna seleccionada</span>
+        <button class="btn btn-purple btn-sm" onclick="seatsDo('release')">🔓 Liberar para comprar</button>
+        <button class="btn btn-light btn-sm" onclick="seatsDo('take')">🔒 Volver a tomar</button>
+        <button class="btn btn-green btn-sm" onclick="seatsDo('bought')">✅ Ya las compré</button>
+        <button class="btn btn-light btn-sm" onclick="seatsUI.sel.clear(); renderSeatsMap()">Limpiar selección</button>
+      </div>
+      <div class="seats-watch">
+        <label><input type="checkbox" id="seatsWatchOn" onchange="setSeatsWatch()"> Vigilante independiente: revisar las liberadas cada</label>
+        <input type="number" id="seatsWatchSec" min="1" max="600" value="2" onchange="setSeatsWatch()"> s
+        <span class="hint-dark">(además del ritmo del job; opcional)</span>
+      </div>
+      <div id="seatsRel"></div>
+    </div>
+  </section>
+  </div>
 
   <!-- ═══════════════ CONFIGURACIÓN (modal) ═══════════════ -->
   <div class="modal-backdrop" id="configModal" onclick="if (event.target === this) closeConfig()">
@@ -552,6 +799,8 @@ aside input:focus { outline: none; border-color: var(--purple); }
       </div>
     </div>
 
+    <div class="statusbar" id="statusBar"></div>
+
     <!-- ═══════════════ JOBS ═══════════════ -->
     <div class="card" id="jobsCard">
       <div class="card-head">
@@ -576,17 +825,33 @@ aside input:focus { outline: none; border-color: var(--purple); }
 
     <div class="card hist-card" id="histCard">
       <div class="card-head">
-        <div class="card-title">Histórico de intentos</div>
-        <select class="head-select" id="histFilter" onchange="renderHistory()"><option value="">Todos los jobs</option></select>
-        <div class="card-sub" id="histSub"></div>
-        <button class="btn btn-light btn-sm" onclick="clearHistory()">Limpiar</button>
+        <div class="card-title">Análisis</div>
+        <select class="head-select" id="histFilter" onchange="onAnaJobChange()"><option value="">Todos los jobs</option></select>
         <button class="btn btn-light btn-sm" id="histExpandBtn" title="Pantalla completa" onclick="toggleHistoryExpand()">⛶</button>
       </div>
-      <div class="hist-wrap">
-        <table class="hist-table">
-          <thead><tr><th>Hora</th><th>Job</th><th>Resultado</th><th>Detalle</th><th>Siguiente</th></tr></thead>
-          <tbody id="histRows"></tbody>
-        </table>
+      <div class="ana-tabs" id="anaTabs" role="tablist">
+        <button data-tab="resumen" onclick="setAnaTab('resumen')">Resumen</button>
+        <button data-tab="retencion" onclick="setAnaTab('retencion')">Retención</button>
+        <button data-tab="huecos" onclick="setAnaTab('huecos')">Huecos</button>
+        <button data-tab="hilos" onclick="setAnaTab('hilos')">Hilos</button>
+        <button data-tab="eventos" onclick="setAnaTab('eventos')">Eventos</button>
+        <button data-tab="intentos" onclick="setAnaTab('intentos')">Intentos</button>
+      </div>
+      <div class="ana-body">
+        <div class="ana-pane" id="pane-resumen"></div>
+        <div class="ana-pane" id="pane-retencion"></div>
+        <div class="ana-pane" id="pane-huecos"></div>
+        <div class="ana-pane" id="pane-hilos"></div>
+        <div class="ana-pane" id="pane-eventos"></div>
+        <div class="ana-pane ana-pane-flush" id="pane-intentos">
+          <div class="ana-subhead"><div class="card-sub" id="histSub"></div><button class="btn btn-light btn-sm" onclick="clearHistory()">Limpiar</button></div>
+          <div class="hist-wrap">
+            <table class="hist-table">
+              <thead><tr><th>Hora</th><th>Job</th><th>Resultado</th><th>Detalle</th><th>Siguiente</th></tr></thead>
+              <tbody id="histRows"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
     </div>
@@ -1007,6 +1272,17 @@ function editorConfig() {
     windowMinMs: Math.min(wmin, wmax) * 1000,
     windowMaxMs: Math.max(wmin, wmax) * 1000,
     adaptive:    $('adaptive').checked,
+    profile:     state.editorProfile || 'custom',
+    threads:     parseInt($('threads').value) || 3,
+    maxPerOrder: parseInt($('maxPerOrder').value) || 10,
+    fireMode:    $('fireMode').value,
+    holdGuessMs: Math.round((parseFloat($('holdGuessMin').value) || 0) * 60000),
+    burst:       $('burst').checked,
+    burstLeadMs: Math.round((parseFloat($('burstLead').value) || 0) * 1000),
+    burstIntervalMs: Math.round((parseFloat($('burstEvery').value) || 1) * 1000),
+    burstSpanMs: Math.round((parseFloat($('burstSpan').value) || 30) * 1000),
+    renew:       $('renew').checked,
+    renewLeadMs: Math.round((parseFloat($('renewLead').value) || 45) * 1000),
     endAt:       endAtFromInput(),
   };
 }
@@ -1041,6 +1317,8 @@ function renderEditor() {
 function newJobEditor() {
   state.editingJobId = null;
   $('jobName').value = '';
+  applyPreset('normal');
+  $('presetHint').textContent = '';
   state.targetSeats = [];
   if (state.seatPlan) renderSeatMap(state.seatPlan);
   renderTargetChips();
@@ -1091,15 +1369,23 @@ async function pauseJob(id, paused) {
 }
 
 async function pauseAll(paused) {
-  if (paused && !confirm('¿Pausar todos los jobs? Dejarán de reservar y solo avisarán cuando las butacas estén libres.')) return;
+  if (paused && !confirm('¿Pausar todos los jobs? Todas sus butacas quedan liberadas para ti: el bot deja de tomarlas y te avisa apenas se liberen.')) return;
   await postJ('/bot/jobs/pause-all', { paused });
   pollStatus();
 }
 
-async function ackAlert(id) {
-  await postJ(`/bot/jobs/${id}/ack`);
-  pollStatus();
+// Acción sobre butacas de una función (todos sus jobs): release | take | bought | ack | watch
+async function seatAction(cinemaId, sessionId, labels, action, extra = {}) {
+  const r = await postJ('/bot/seats', { cinemaId, sessionId, labels, action, ...extra }).catch(e => ({ error: e.message }));
+  if (r.error) alert(r.error);
+  await pollStatus();
+  if (seatsUI.open) loadSeatsMap();
+  return r;
 }
+const alertAct = (jobId, action, which) => {
+  const a = lastAlerts.find(x => x.jobId === jobId);
+  if (a) seatAction(a.cinemaId, a.sessionId, which === 'gone' ? a.gone : which === 'all' ? [...a.seats, ...a.gone] : a.seats, action);
+};
 
 async function deleteJob(id) {
   const job = state.jobs.find(j => j.id === id);
@@ -1170,11 +1456,25 @@ async function selectJob(id) {
   $('retryMin').value    = job.retryMinMs / 1000;
   $('retryMax').value    = job.retryMaxMs / 1000;
   $('adaptive').checked  = job.adaptive !== false;
+  $('threads').value     = job.threads || 1;
+  $('maxPerOrder').value = job.maxPerOrder || 10;
+  $('fireMode').value    = job.fireMode || 'backup';
+  $('holdGuessMin').value = job.holdGuessMs ? +(job.holdGuessMs / 60000).toFixed(2) : '';
+  $('burst').checked     = job.burst !== false;
+  $('burstLead').value   = (job.burstLeadMs ?? 8000) / 1000;
+  $('burstEvery').value  = (job.burstIntervalMs || 1000) / 1000;
+  $('burstSpan').value   = (job.burstSpanMs || 30000) / 1000;
+  $('renew').checked     = !!job.renew;
+  $('renewLead').value   = (job.renewLeadMs || 45000) / 1000;
+  $('presetHint').textContent = '';
+  state.editorProfile = job.profile || 'custom';
   $('baselineSec').value = (job.baselineMs ?? 60000) / 1000;
   $('winMin').value      = (job.windowMinMs || 30000) / 1000;
   $('winMax').value      = (job.windowMaxMs || 60000) / 1000;
   $('endTime').value     = job.endAt ? toLocalInput(job.endAt) : '';
   updateEndHint();
+  renderProfileLine();   // con todos los campos ya cargados
+  if ($('histFilter').value !== id) { renderHistory(); $('histFilter').value = id; onAnaJobChange(); }
   renderEditor(); renderJobs(); renderJob();
 
   // Cine → películas
@@ -1200,8 +1500,10 @@ async function selectJob(id) {
 // ── Panel de jobs, detalles, consola, histórico ───────────────────────────────
 function jobBadge(j) {
   if (!j.running) return '<span class="badge badge-gray">Detenido</span>';
-  if (j.paused && j.alert) return '<span class="badge badge-alert">🔔 ¡Libres!</span>';
-  if (j.paused) return `<span class="badge badge-paused">⏸ Pausado${j.mode === 'hold' ? ' · retención' : ''}</span>`;
+  const rel = Object.values(j.releases || {});
+  if (rel.some(r => r.status === 'free')) return '<span class="badge badge-alert">🔔 ¡Libres para ti!</span>';
+  if (j.paused) return '<span class="badge badge-paused">⏸ Pausado · avisa al liberarse</span>';
+  if (j.mode === 'watch') return '<span class="badge badge-paused">Vigilando liberadas</span>';
   if (j.busy) return '<span class="badge badge-green">Intentando…</span>';
   if (j.mode === 'hold')  return '<span class="badge badge-cyan">En retención</span>';
   return j.mode === 'retry' ? '<span class="badge badge-yellow">Reintentando</span>' : '<span class="badge badge-green">Corriendo</span>';
@@ -1210,8 +1512,20 @@ function jobBadge(j) {
 const fmtMin = ms => `${(ms / 60000).toFixed(1)} min`;
 
 // Butacas objetivo coloreadas: verde = retenida por el job, rojo tachado = la tomó otra persona
+// Resumen para jobs con muchas butacas (tarjeta): "60 retenidas · 10 libres · 2 ocupadas de 72"
+function seatSummary(j) {
+  if (j.targetSeats.length <= 10) return seatChips(j);
+  const n = { held: 0, free: 0, taken: 0, released: 0, forme: 0, gone: 0 };
+  for (const s of j.targetSeats) { const st = j.seatState?.[s.label]; if (st in n) n[st]++; }
+  return `<span class="schip held">${n.held} retenidas</span><span class="schip">${n.free} libres</span>`
+    + `${n.taken ? `<span class="schip taken" style="text-decoration:none">${n.taken} ocupadas</span>` : ''}`
+    + `${n.released ? `<span class="schip released">${n.released} liberadas</span>` : ''}`
+    + `${n.forme ? `<span class="schip forme">${n.forme} ¡libres para ti!</span>` : ''} de ${j.targetSeats.length}`;
+}
+
 function seatChips(j) {
-  const TITLE = { held: 'Retenida por el job', taken: 'No disponible: la tomó otra persona', free: 'Libre' };
+  const TITLE = { held: 'Retenida por el job', taken: 'No disponible: la tomó otra persona', free: 'Libre',
+                  released: 'Liberada para ti: esperando que se libere', forme: '¡Libre para ti! Cómprala', gone: 'Se ocupó (¿la compraste?)' };
   return j.targetSeats.map(s => {
     const st = j.seatState?.[s.label] || '';
     return `<span class="schip ${st}" title="${TITLE[st] || 'Sin comprobar'}">${esc(s.label)}</span>`;
@@ -1260,6 +1574,318 @@ function nextText(j) {
   return `${fmtClock(j.nextAt)} (en ${Math.max(0, Math.round((j.nextAt - Date.now()) / 1000))} s)`;
 }
 
+// ── Perfiles (Preventa / Normal): vienen del servidor ────────────────────────
+// Campos del editor ↔ valores del perfil (ms → s)
+const PROFILE_FIELDS = {
+  intervalMs: ['intervalSec', 1000], baselineMs: ['baselineSec', 1000], windowMinMs: ['winMin', 1000], windowMaxMs: ['winMax', 1000],
+  retryMinMs: ['retryMin', 1000], retryMaxMs: ['retryMax', 1000], threads: ['threads', 1], fireMode: ['fireMode', 0],
+  burst: ['burst', 0], burstLeadMs: ['burstLead', 1000], burstIntervalMs: ['burstEvery', 1000], burstSpanMs: ['burstSpan', 1000],
+};
+const PROFILE_NAMES = { preventa: '⚡ Preventa', normal: 'Normal', custom: 'Personalizado' };
+state.editorProfile = 'normal';
+
+function profileInfoHtml() {
+  const P = state.profiles || {};
+  return `<div class="tip">${Object.entries(P).map(([n, p]) => `<b>${esc(p.label)}</b><ul>${p.info.map(x => `<li>${esc(x)}</li>`).join('')}</ul>`).join('')}
+    <span style="opacity:.75">Los vigías de preestreno crean sus jobs siempre como Preventa. Si cambias algún valor, el job se marca como "ajustado".</span></div>`;
+}
+
+// Insignia de perfil; "ajustado" si algún valor difiere del perfil
+function profileBadge(profile, diff = []) {
+  const p = profile in PROFILE_NAMES ? profile : 'custom';
+  const title = diff.length ? `Ajustado: ${diff.join(', ')} difieren del perfil` : (state.profiles?.[p]?.info?.join(' ') || 'Valores propios');
+  return `<span class="prof prof-${p}" title="${esc(title)}">${PROFILE_NAMES[p]}${diff.length ? ' <small>· ajustado</small>' : ''}</span>`;
+}
+
+// Valores actuales del editor que difieren del perfil elegido
+function editorDiff() {
+  const p = state.profiles?.[state.editorProfile];
+  if (!p) return [];
+  return Object.entries(PROFILE_FIELDS).filter(([k, [id, mul]]) => {
+    const el = $(id);
+    const v = el.type === 'checkbox' ? el.checked : mul ? Math.round(parseFloat(el.value) * mul) : el.value;
+    return v !== p.values[k];
+  }).map(([k]) => k);
+}
+
+function renderProfileLine() {
+  if (!$('profileLine')) return;
+  $('profileInfo').innerHTML = 'i' + profileInfoHtml();
+  for (const n of ['preventa', 'normal']) $(`presetBtn-${n}`).classList.toggle('on', state.editorProfile === n);
+  $('profileLine').innerHTML = `Perfil: ${profileBadge(state.editorProfile, editorDiff())}`;
+}
+
+function applyPreset(name) {
+  const p = state.profiles?.[name];
+  if (!p) return;
+  for (const [k, [id, mul]] of Object.entries(PROFILE_FIELDS)) {
+    const v = p.values[k];
+    if (typeof v === 'boolean') $(id).checked = v; else $(id).value = mul ? v / mul : v;
+  }
+  state.editorProfile = name;
+  $('presetHint').textContent = 'Guarda los cambios (o crea el job) para usarlo.';
+  renderProfileLine();
+}
+// Cualquier cambio manual en esos campos: el perfil queda "ajustado"
+setTimeout(() => { for (const [id] of Object.values(PROFILE_FIELDS)) $(id)?.addEventListener('input', renderProfileLine); }, 0);
+
+const fmtS = ms => ms == null ? '—' : ms < 10000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 1000)} s`;
+
+function renderStatusBar() {
+  const st = state.stats;
+  if (!st) { $('statusBar').innerHTML = ''; return; }
+  const gap = st.lastGap;
+  const gapCls = !gap ? '' : gap.lost ? 'bad' : gap.ms < 2000 ? 'good' : 'warn';
+  const errRecent = st.lastError && Date.now() - st.lastError.at < 5 * 60000;
+  $('statusBar').innerHTML = `
+    <div class="stat ${st.target && st.held === st.target ? 'good' : st.held ? 'warn' : ''}"><b>${st.held} / ${st.target}</b><span>Butacas retenidas</span></div>
+    <div class="stat ${gapCls}" title="${gap ? `Último hueco entre la liberación y la nueva reserva (máx. ${fmtS(gap.maxMs)})` : 'Aún no hubo re-reservas'}"><b>${gap ? '~' + fmtS(gap.ms) : '—'}</b><span>Último hueco</span></div>
+    <div class="stat ${st.lost ? 'bad' : ''}"><b>${st.lost}</b><span>Perdidas en huecos</span></div>
+    <div class="stat ${errRecent ? 'warn' : ''}"><b>${st.perMin}</b><span>Peticiones al cine / min</span>
+      ${errRecent ? `<div class="stat-err" title="${esc(st.lastError.msg)}">${esc(st.lastError.msg)} · ${fmtClock(st.lastError.at)}</div>` : ''}</div>
+    <div class="stat ${st.telegram ? 'good' : ''}"><b>${st.telegram ? 'Activos' : 'No'}</b><span>Avisos Telegram</span>
+      ${st.telegram ? '<a href="#" style="font-size:.72rem" onclick="event.preventDefault();testTelegram()">Probar</a>' : '<span style="text-transform:none;letter-spacing:0" title="Pon TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en .env">Configurar en .env</span>'}</div>`;
+}
+
+async function testTelegram() {
+  const r = await postJ('/bot/telegram-test').catch(e => ({ error: e.message }));
+  alert(r.error ? `No se pudo: ${r.error}` : 'Mensaje de prueba enviado: revisa Telegram.');
+}
+
+// Mini mapa del bloque: vista desde la pantalla (fila de adelante arriba, igual que el mapa grande)
+function miniMap(j) {
+  if (!j.targetSeats.length) return '';
+  const rows = [...new Set(j.targetSeats.map(t => t.rowIndex))].sort((a, b) => b - a);
+  const cols = j.targetSeats.map(t => t.columnIndex);
+  const cMin = Math.min(...cols), cMax = Math.max(...cols);
+  if (cMax - cMin > 40 || rows.length > 15) return '';
+  const at = new Map(j.targetSeats.map(t => [`${t.rowIndex}-${t.columnIndex}`, t]));
+  return `<div class="mini" title="Verde: retenida · blanca: libre · roja: la tiene otra persona · amarilla: liberada para ti (esperando) · celeste: ¡libre para ti! · gris oscuro: se ocupó">${rows.map(r => {
+    let h = '';
+    for (let c = cMax; c >= cMin; c--) {
+      const t = at.get(`${r}-${c}`);
+      h += t ? `<i class="${j.seatState?.[t.label] || ''}"></i>` : '<i class="gap"></i>';
+    }
+    return `<div class="mini-r">${h}</div>`;
+  }).join('')}</div>`;
+}
+
+// ── Detalle de hilos en tiempo real ──────────────────────────────────────────
+// Cada hilo: su turno (el de turno con barra hacia la próxima revisión; los demás, hacia su turno estimado),
+// sus intentos y lo que retiene. Las barras se animan solas entre consultas al servidor.
+const hilosDetOpen = new Set();
+const KIND_TXT = { reserved: 'reservó', partial: 'reservó (parcial)', hold: 'retención', watch: 'vigilando', failed: 'falló', test: 'test', free: 'libres' };
+
+function hilosDetailHtml(j) {
+  const hs = j.hilos || [];
+  const n = hs.length || 1;
+  const open = hilosDetOpen.has(j.id);
+  const sum = `${n} hilo${n > 1 ? 's' : ''} turnándose${j.running && j.nextAt ? ` · próximo turno: hilo ${hs.find(h => h.next)?.n || '—'}` : ''}`;
+  if (!hs.length) return sum;
+  const last = j.history?.[0];
+  const step = last?.nextInMs || 0;                       // espera actual entre revisiones
+  const nextN = hs.find(h => h.next)?.n;
+  const burst = j.cycle?.phase === 'burst';
+  const body = hs.map(h => {
+    const mine = (j.history || []).filter(x => x.hilo === h.n);
+    const ok = mine.filter(x => x.kind === 'reserved' || x.kind === 'partial').length;
+    // Posición en la fila de turnos: 0 = el de turno
+    const pos = nextN ? (h.n - nextN + n) % n : null;
+    const to = j.running && j.nextAt ? j.nextAt + (pos || 0) * step : null;
+    const from = h.lastAt ? new Date(h.lastAt).getTime() : (mine[0] ? new Date(mine[0].time).getTime() : null);
+    return `<div class="hd ${h.next ? 'next' : ''}">
+      <div class="hd-head"><span class="hnum ${h.next ? 'next' : ''}">${h.n}</span>
+        <b>${h.next ? 'De turno' : pos != null ? `Descansa · turno en ${pos} revisión${pos > 1 ? 'es' : ''}` : 'Detenido'}</b>
+        <span>${mine.length} intentos · ${ok} reservas${h.seats ? ` · retiene ${h.seats} en ${h.orders} ${h.orders > 1 ? 'órdenes' : 'orden'}` : ''}</span>
+        <span class="hd-eta" ${to ? `data-eta="${to}"` : ''}>${to ? '' : '—'}</span></div>
+      <div class="hbar ${burst && h.next ? 'burst' : ''}"><i ${from && to ? `data-from="${from}" data-to="${to}"` : ''}></i></div>
+      <div class="hd-rec">${mine.slice(0, 5).map(x => `<div><time>${fmtClock(x.time)}</time><span class="k ${x.kind}">${KIND_TXT[x.kind] || x.kind}</span><span title="${esc(x.msg || '')}">${esc(x.msg || '')}</span></div>`).join('') || '<div>Aún sin turnos</div>'}</div>
+    </div>`;
+  }).join('');
+  return `<details class="hilos-det" ${open ? 'open' : ''} ontoggle="this.open ? hilosDetOpen.add('${j.id}') : hilosDetOpen.delete('${j.id}')">
+    <summary>${sum}${burst ? ' · <span style="color:var(--orange)">ráfaga</span>' : ''}</summary><div class="hd-list">${body}</div></details>`;
+}
+
+// Anima barras y cuentas atrás (sin esperar al servidor)
+setInterval(() => {
+  const now = Date.now();
+  for (const i of document.querySelectorAll('.hbar i[data-from]')) {
+    const a = +i.dataset.from, b = +i.dataset.to;
+    i.style.width = `${Math.max(0, Math.min(100, (now - a) / Math.max(1, b - a) * 100))}%`;
+  }
+  for (const e of document.querySelectorAll('[data-eta]')) {
+    const ms = +e.dataset.eta - now;
+    e.textContent = ms > 0 ? `en ${(ms / 1000).toFixed(1)} s` : 'revisando…';
+  }
+}, 150);
+// Con el detalle abierto, datos más frescos
+setInterval(() => { if (hilosDetOpen.size && !document.hidden) pollStatus(); }, 1000);
+
+// ── Ventana "Liberar butacas": sala en vivo de una función retenida ──────────
+const seatsUI = { open: false, key: null, sel: new Set(), plan: null, timer: null };
+const fnKey = j => `${j.cinemaId}|${j.sessionId}`;
+
+function openSeats(jobId) {
+  const fns = new Map();
+  for (const j of state.jobs) if (j.cinemaId && j.sessionId && j.targetSeats.length && !fns.has(fnKey(j))) fns.set(fnKey(j), j);
+  if (!fns.size) return alert('No hay funciones con butacas retenidas');
+  const list = [...fns.values()].sort((a, b) => String(a.cinemaName).localeCompare(String(b.cinemaName)) || String(a.showtime).localeCompare(String(b.showtime)));
+  $('seatsFn').innerHTML = list.map(j => `<option value="${esc(fnKey(j))}">${esc(j.cinemaName)} · ${j.showtime ? esc(`${fmtDay(j.showtime)} ${fmtTime(j.showtime)}`) : ''} · ${esc(j.screenName || '')} · ${esc(j.movieTitle)}</option>`).join('');
+  const pick = state.jobs.find(j => j.id === jobId);
+  if (pick) $('seatsFn').value = fnKey(pick);
+  seatsUI.sel.clear();
+  seatsUI.open = true;
+  $('seatsModal').classList.add('open');
+  loadSeatsMap();
+  clearInterval(seatsUI.timer);
+  seatsUI.timer = setInterval(() => seatsUI.open && loadSeatsMap(), 2500);
+}
+function closeSeats() { seatsUI.open = false; clearInterval(seatsUI.timer); $('seatsModal').classList.remove('open'); }
+
+const seatsJobs = () => state.jobs.filter(j => fnKey(j) === $('seatsFn').value);
+
+async function loadSeatsMap() {
+  const [cinemaId, sessionId] = $('seatsFn').value.split('|');
+  const plan = await ap(`/bot/seatplan?cinemaId=${encodeURIComponent(cinemaId)}&sessionId=${encodeURIComponent(sessionId)}`).catch(e => ({ error: e.message }));
+  if (!seatsUI.open || $('seatsFn').value !== `${cinemaId}|${sessionId}`) return;
+  seatsUI.plan = plan;
+  renderSeatsMap();
+}
+
+function renderSeatsMap() {
+  const plan = seatsUI.plan, js = seatsJobs();
+  const area = plan?.SeatLayoutData?.Areas?.[0];
+  if (!area) { $('seatsMap').innerHTML = `<div class="hint-dark">${esc(plan?.error || 'La sala aún no tiene mapa')}</div>`; return; }
+  // Estado de cada butaca objetivo según los jobs de esta función
+  const tgt = new Map();
+  for (const j of js) for (const t of j.targetSeats) tgt.set(`${t.rowIndex}-${t.columnIndex}`, { label: t.label, st: j.seatState?.[t.label] || '' });
+  const rows = area.Rows || [];
+  const allCols = rows.flatMap(r => (r.Seats || []).map(x => x.Position?.ColumnIndex ?? 0));
+  const maxC = Math.max(area.ColumnCount ? area.ColumnCount - 1 : 0, ...allCols, 0);
+  let html = '<div class="sm-screen"></div><div class="sm-screen-l">PANTALLA</div><div class="sm-rows">';
+  for (let ri = rows.length - 1; ri >= 0; ri--) {
+    const row = rows[ri], seats = row.Seats || [];
+    if (!seats.length) continue;
+    html += `<div class="sm-row"><span class="sm-lbl">${esc(row.PhysicalName)}</span>`;
+    for (let ci = maxC; ci >= 0; ci--) {
+      const seat = seats.find(x => x.Position?.ColumnIndex === ci);
+      if (!seat || seat.Status === 7) { html += '<span class="sm-seat empty"></span>'; continue; }
+      const label = `${row.PhysicalName}${seat.Id || ci}`;
+      const t = tgt.get(`${ri}-${ci}`);
+      if (t) {
+        const cls = { held: 'held', released: 'released', forme: 'forme', gone: 'gone', taken: 'occ', free: '' }[t.st] ?? '';
+        html += `<span class="sm-seat tgt ${cls} ${seatsUI.sel.has(t.label) ? 'sel' : ''}" title="${esc(t.label)}" onclick="toggleSeatSel('${esc(t.label)}')">${esc(String(seat.Id || ''))}</span>`;
+      } else html += `<span class="sm-seat ${seat.Status === 0 ? '' : 'occ'}" title="${esc(label)}"></span>`;
+    }
+    html += `<span class="sm-lbl">${esc(row.PhysicalName)}</span></div>`;
+  }
+  $('seatsMap').innerHTML = html + '</div>';
+  const n = seatsUI.sel.size;
+  $('seatsSelTxt').innerHTML = n ? `<b>${n}</b> seleccionada${n > 1 ? 's' : ''}: ${esc([...seatsUI.sel].join(', '))}` : 'Ninguna seleccionada (clic en butacas de tu bloque)';
+  const j0 = js[0];
+  const held = js.reduce((k, j) => k + Object.values(j.seatState || {}).filter(x => x === 'held').length, 0);
+  $('seatsSub').textContent = j0 ? `${held} retenidas por el bot · ${j0.targetSeats.length} en el bloque` : '';
+  if (document.activeElement !== $('seatsWatchSec')) {
+    const w = js.find(j => j.releaseWatchMs);
+    $('seatsWatchOn').checked = !!w;
+    if (w) $('seatsWatchSec').value = w.releaseWatchMs / 1000;
+  }
+  // Liberadas de esta función
+  const rel = js.flatMap(j => Object.entries(j.releases || {}).map(([l, r]) => ({ l, ...r })));
+  const ST = { waiting: '⏳ Esperando que se libere', free: '🔔 <b style="color:#0e8f97">¡Libre! Cómprala</b>', gone: 'ℹ️ Se ocupó (¿la compraste?)' };
+  $('seatsRel').innerHTML = rel.length ? `<table class="rel-table"><tr><th>Butaca</th><th>Estado</th><th>Desde</th><th></th></tr>${rel.map(r => `
+    <tr><td><b>${esc(r.l)}</b></td><td>${ST[r.status] || r.status}</td><td>${fmtClock(r.since)}</td>
+      <td><button class="btn btn-green btn-sm" onclick="seatsDo('bought',['${esc(r.l)}'])">✅ Comprada</button>
+          <button class="btn btn-light btn-sm" onclick="seatsDo('take',['${esc(r.l)}'])">🔒 Volver a tomar</button></td></tr>`).join('')}</table>`
+    + (rel.length > 1 ? `<div class="seats-actions"><button class="btn btn-green btn-sm" onclick="seatsDo('bought',${esc(JSON.stringify(rel.map(r => r.l)))})">✅ Todas compradas</button>
+        <button class="btn btn-light btn-sm" onclick="seatsDo('take',${esc(JSON.stringify(rel.map(r => r.l)))})">🔒 Volver a tomar todas</button></div>` : '')
+    : '<div class="hint-dark" style="margin-top:10px">No hay butacas liberadas en esta función.</div>';
+  if (js.some(j => j.bought?.length)) $('seatsRel').innerHTML += `<div class="hint-dark" style="margin-top:8px">Compradas: ${esc(js.flatMap(j => j.bought || []).join(', '))}</div>`;
+}
+
+function toggleSeatSel(label) {
+  seatsUI.sel.has(label) ? seatsUI.sel.delete(label) : seatsUI.sel.add(label);
+  renderSeatsMap();
+}
+
+async function seatsDo(action, labels = null) {
+  const list = labels || [...seatsUI.sel];
+  if (!list.length) return alert('Selecciona butacas en el mapa');
+  if (action === 'bought' && !confirm(`¿Marcar como compradas ${list.join(', ')}? Salen del job y el bot ya no las buscará.`)) return;
+  const [cinemaId, sessionId] = $('seatsFn').value.split('|');
+  await seatAction(cinemaId, sessionId, list, action);
+  if (!labels) seatsUI.sel.clear();
+  renderSeatsMap();
+}
+
+function setSeatsWatch() {
+  const [cinemaId, sessionId] = $('seatsFn').value.split('|');
+  const sec = Math.max(1, parseFloat($('seatsWatchSec').value) || 2);
+  seatAction(cinemaId, sessionId, [], 'watch', { everyMs: $('seatsWatchOn').checked ? Math.round(sec * 1000) : 0 });
+}
+
+// Grupos plegados (por película + cine) e hilos desplegados (por job)
+const collapsedGroups = new Set((() => { try { return JSON.parse(localStorage.getItem('collapsedGroups') || '[]'); } catch { return []; } })());
+const openHilos = new Set();
+const groupKey = j => `${j.movieId || j.movieTitle || 'x'}-${j.cinemaId || 'x'}`.replace(/[^\w-]/g, '');
+
+function toggleGroup(key) {
+  collapsedGroups.has(key) ? collapsedGroups.delete(key) : collapsedGroups.add(key);
+  try { localStorage.setItem('collapsedGroups', JSON.stringify([...collapsedGroups])); } catch {}
+  renderJobs();
+}
+function toggleHilos(id) { openHilos.has(id) ? openHilos.delete(id) : openHilos.add(id); renderJobs(); }
+
+async function pauseGroup(key, paused) {
+  for (const j of state.jobs.filter(j => groupKey(j) === key && j.running && !!j.paused !== paused))
+    await postJ(`/bot/jobs/${j.id}/${paused ? 'pause' : 'resume'}`);
+  pollStatus();
+}
+
+const HILO_KIND = { reserved: 'reservó', partial: 'reservó (parcial)', hold: 'retención activa', free: 'vio libres (pausa)', failed: 'falló', test: 'test' };
+function agoText(iso) {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  return s < 60 ? `hace ${s} s` : s < 3600 ? `hace ${Math.round(s / 60)} min` : `a las ${fmtClock(iso)}`;
+}
+
+function hilosHtml(j) {
+  const hs = j.hilos || [];
+  if (!hs.length) return '';
+  const next = hs.find(h => h.next);
+  const open = openHilos.has(j.id);
+  return `<div class="jc-hilos-t" onclick="event.stopPropagation();toggleHilos('${j.id}')">${open ? '▾' : '▸'} ${hs.length} hilo${hs.length > 1 ? 's' : ''}${next ? ` · próximo turno: hilo ${next.n}` : ''}</div>`
+    + (!open ? '' : `<div class="jc-hilos" onclick="event.stopPropagation()">${hs.map(h => `
+      <div class="hrow" title="${esc(h.msg)}"><span class="hnum ${h.next ? 'next' : ''}">${h.n}</span>
+        <b>${h.kind ? HILO_KIND[h.kind] || h.kind : 'sin turnos aún'}</b>${h.lastAt ? ` <span>${agoText(h.lastAt)}</span>` : ''}
+        ${h.seats ? `<span>· retiene ${h.seats} en ${h.orders} ${h.orders > 1 ? 'órdenes' : 'orden'}</span>` : ''}</div>`).join('')}</div>`);
+}
+
+function jobCard(j) {
+  return `
+    <div class="job-card ${j.id === state.editingJobId ? 'sel' : ''} ${Object.values(j.releases || {}).some(r => r.status === 'free') ? 'alerting' : j.paused ? 'paused' : ''}" onclick="selectJob('${j.id}')">
+      <div class="jc-body">
+        <div class="jc-top"><span class="jc-name" title="${esc(j.name)}">${j.showtime ? esc(`${fmtDay(j.showtime)} ${fmtTime(j.showtime)}`) : esc(j.name)}</span>${profileBadge(j.profile, j.profileDiff)}${jobBadge(j)}</div>
+        <div class="jc-line">${esc(j.screenName || '')}${j.screenName ? ' · ' : ''}${esc(j.ticketDesc || j.ticketCode)}</div>
+        ${miniMap(j)}
+        <div class="jc-line">${seatSummary(j)}${j.lostSeats ? ` · <span style="color:var(--pink)">${j.lostSeats} perdidas</span>` : ''}${j.lastGapMs != null ? ` · hueco ~${fmtS(j.lastGapMs)}` : ''}</div>
+        <div class="jc-line">Próximo: ${nextText(j)} · OK ${j.successes}/${j.attempts}</div>
+        <div class="jc-line" title="${esc(waitText(j))}">Retención: ${j.learnedHoldMs ? '~' + fmtMin(j.learnedHoldMs) : j.holdHint ? `&lt; ${fmtMin(j.holdHint)}` : 'sin medir'} · ${waitText(j)}</div>
+        ${hilosHtml(j)}
+        <div class="jc-actions">
+          ${j.running
+            ? `<button class="btn btn-pink btn-sm" onclick="event.stopPropagation();stopJob('${j.id}')">⏹ Detener</button>`
+            : `<button class="btn btn-green btn-sm" onclick="event.stopPropagation();startJob('${j.id}')">▶ Iniciar</button>`}
+          ${j.running ? (j.paused
+            ? `<button class="btn btn-purple btn-sm" title="El bot vuelve a reservar" onclick="event.stopPropagation();pauseJob('${j.id}', false)">▶ Quitar pausa</button>`
+            : `<button class="btn btn-pause btn-sm" title="Libera todas sus butacas para ti: el bot deja de tomarlas y te avisa apenas se liberen" onclick="event.stopPropagation();pauseJob('${j.id}', true)">⏸ Pausar</button>`) : ''}
+          <button class="btn btn-purple btn-sm" title="Ver la sala y elegir butacas para comprarlas tú" onclick="event.stopPropagation();openSeats('${j.id}')">🎟️ Liberar butacas</button>
+          <button class="btn btn-light btn-sm" title="Muestra cómo se ve y suena el aviso (no cambia nada)" onclick="event.stopPropagation();simulateAlert('${j.id}')">🔔 Simular</button>
+          <button class="btn btn-light btn-sm" onclick="event.stopPropagation();deleteJob('${j.id}')">🗑 Eliminar</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 function renderJobs() {
   const running = state.jobs.filter(j => j.running).length;
   const pausedN = state.jobs.filter(j => j.running && j.paused).length;
@@ -1269,31 +1895,46 @@ function renderJobs() {
     pausedN ? '<button class="btn btn-light btn-sm" onclick="pauseAll(false)">▶ Quitar pausa a todos</button>' : '',
   ].join(' ');
   if (!state.jobs.length) {
+    $('jobsGrid').className = '';
     $('jobsGrid').innerHTML = '<div class="jobs-empty">Aún no hay jobs. Elige función y asientos, y pulsa “Crear e iniciar job”.</div>';
     return;
   }
-  $('jobsGrid').className = 'jobs-grid';
-  $('jobsGrid').innerHTML = state.jobs.map(j => `
-    <div class="job-card ${j.id === state.editingJobId ? 'sel' : ''} ${j.running && j.paused ? (j.alert ? 'alerting' : 'paused') : ''}" onclick="selectJob('${j.id}')">
-      <img src="${esc(j.posterUrl)}" alt="" onerror="this.style.visibility='hidden'">
-      <div class="jc-body">
-        <div class="jc-top"><span class="jc-name" title="${esc(j.name)}">${esc(j.name)}</span>${jobBadge(j)}</div>
-        <div class="jc-line">${esc(j.cinemaName)} · ${j.showtime ? esc(`${fmtDay(j.showtime)} ${fmtTime(j.showtime)}`) : ''} · ${esc(j.screenName)}</div>
-        <div class="jc-line">${seatChips(j)} · ${esc(j.ticketDesc || j.ticketCode)}</div>
-        <div class="jc-line">Próximo: ${nextText(j)} · OK ${j.successes}/${j.attempts}</div>
-        <div class="jc-line" title="${esc(waitText(j))}">Retención: ${j.learnedHoldMs ? '~' + fmtMin(j.learnedHoldMs) : j.holdHint ? `&lt; ${fmtMin(j.holdHint)}` : 'sin medir'} · ${waitText(j)}</div>
-        <div class="jc-actions">
-          ${j.running
-            ? `<button class="btn btn-pink btn-sm" onclick="event.stopPropagation();stopJob('${j.id}')">⏹ Detener</button>`
-            : `<button class="btn btn-green btn-sm" onclick="event.stopPropagation();startJob('${j.id}')">▶ Iniciar</button>`}
-          ${j.running ? (j.paused
-            ? `<button class="btn btn-purple btn-sm" title="El bot vuelve a reservar" onclick="event.stopPropagation();pauseJob('${j.id}', false)">▶ Quitar pausa</button>`
-            : `<button class="btn btn-pause btn-sm" title="Deja de reservar; solo avisa cuando las butacas estén libres" onclick="event.stopPropagation();pauseJob('${j.id}', true)">⏸ Pausar</button>`) : ''}
-          <button class="btn btn-light btn-sm" title="Muestra cómo te avisará este job cuando esté en pausa y vea sus butacas libres (no cambia nada)" onclick="event.stopPropagation();simulateAlert('${j.id}')">🔔 Simular</button>
-          <button class="btn btn-light btn-sm" onclick="event.stopPropagation();deleteJob('${j.id}')">🗑 Eliminar</button>
+  // Un grupo por película + cine; dentro, sus funciones por fecha
+  const groups = new Map();
+  for (const j of state.jobs) {
+    const k = groupKey(j);
+    if (!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(j);
+  }
+  const list = [...groups.entries()].sort(([, a], [, b]) =>
+    String(a[0].movieTitle).localeCompare(String(b[0].movieTitle)) || String(a[0].cinemaName).localeCompare(String(b[0].cinemaName)));
+  $('jobsGrid').className = 'jobs-groups';
+  $('jobsGrid').innerHTML = list.map(([key, js]) => {
+    js.sort((a, b) => String(a.showtime || '').localeCompare(String(b.showtime || '')));
+    const j0 = js[0];
+    const run = js.filter(j => j.running), paused = run.filter(j => j.paused);
+    const seats = js.reduce((n, j) => n + j.targetSeats.length, 0);
+    const held  = js.reduce((n, j) => n + j.targetSeats.filter(s => j.seatState?.[s.label] === 'held').length, 0);
+    const alert = js.some(j => Object.values(j.releases || {}).some(r => r.status === 'free'));
+    return `
+      <div class="jgroup ${collapsedGroups.has(key) ? 'closed' : ''}" ${alert ? 'style="border-color:#e8114b"' : ''}>
+        <div class="jg-head" onclick="toggleGroup('${key}')">
+          <span class="jg-arrow">▾</span>
+          <img src="${esc(j0.posterUrl)}" alt="" onerror="this.style.visibility='hidden'">
+          <div class="jg-main">
+            <div class="jg-title">${esc(j0.movieTitle || j0.name)} · ${esc(j0.cinemaName || j0.cinemaId || '')}
+              ${[...new Set(js.map(j => j.profile || 'custom'))].map(p => profileBadge(p, js.some(j => j.profile === p && j.profileDiff?.length) ? ['algún job'] : [])).join(' ')}</div>
+            <div class="jg-sub"><b>${js.length} ${js.length > 1 ? 'funciones' : 'función'}</b> · ${run.length} corriendo${paused.length ? ` · ${paused.length} en pausa` : ''}
+              · <b>${held}</b> de ${seats} butacas retenidas${alert ? ' · <span style="color:#e8114b">🔔 ¡Libres para ti!</span>' : ''}</div>
+          </div>
+          <div class="jg-actions" onclick="event.stopPropagation()">
+            ${run.length > paused.length ? `<button class="btn btn-pause btn-sm" onclick="pauseGroup('${key}', true)">⏸ Pausar</button>` : ''}
+            ${paused.length ? `<button class="btn btn-light btn-sm" onclick="pauseGroup('${key}', false)">▶ Quitar pausa</button>` : ''}
+          </div>
         </div>
-      </div>
-    </div>`).join('');
+        <div class="jobs-grid">${js.map(jobCard).join('')}</div>
+      </div>`;
+  }).join('');
 }
 
 function renderJob() {
@@ -1322,6 +1963,8 @@ function renderJob() {
     j.holdHint ? `<span style="color:var(--orange)">Estimación de un solo uso: &lt; ${fmtMin(j.holdHint)}</span> <span style="color:var(--muted)">(se liberó antes de la primera revisión; no cuenta como medición)</span>` : '',
   ].filter(Boolean).join('<br>');
   const rows = [
+    ['Perfil',           `${profileBadge(j.profile, j.profileDiff)} <span class="info-tip light" tabindex="0">i${profileInfoHtml()}</span>`
+      + (j.profileDiff?.length ? `<div style="font-size:.74rem;color:var(--muted);margin-top:3px">Ajustado: ${esc(j.profileDiff.join(', '))}</div>` : '')],
     ['Estado',           jobBadge(j) + (j.paused ? `<div style="color:var(--orange);font-size:.78rem;margin-top:4px">En pausa: sigue revisando pero no reserva; avisa aquí cuando las butacas estén libres${j.heldSeats?.length ? '. La retención actual vencerá sola' : ''}</div>` : '')],
     ['Próximo intento',  nextText(j)],
     ['Hora de fin',      j.endAt ? `${fmtDay(j.endAt)} ${fmtTime(j.endAt)}` : '—'],
@@ -1330,6 +1973,21 @@ function renderJob() {
     ['Asientos',         (seatChips(j) || '—') + (taken.length
       ? `<div style="color:var(--pink);font-size:.78rem;margin-top:4px">${esc(taken.join(', '))} no disponible${taken.length > 1 ? 's' : ''}: el job sigue con el resto y lo${taken.length > 1 ? 's' : ''} vuelve a incluir si se libera${taken.length > 1 ? 'n' : ''}</div>` : '')],
     ['Entrada',          esc(`${j.ticketDesc || ''} (${j.ticketCode})`)],
+    ['Hilos / órdenes',  hilosDetailHtml(j) + `<div style="margin-top:6px">Órdenes de hasta ${j.orderLimit || j.maxPerOrder || 10} butacas`
+      + `${j.orderLimit && j.orderLimit < j.maxPerOrder ? ' <span style="color:var(--orange)">(el cine no aceptó más)</span>' : ''}`
+      + `${j.orders?.length ? ` · ${j.orders.length} ${j.orders.length > 1 ? 'órdenes' : 'orden'} vigente${j.orders.length > 1 ? 's' : ''}` : ''}</div>`],
+    ['Hueco y pérdidas', (() => {
+      const ex = (j.exposure || []).slice(-5).reverse();
+      return `${ex.length ? ex.map(x => `~${fmtS(x.ms)}${x.lost ? ` <span style="color:var(--pink)">(${x.lost} perdidas)</span>` : ''}`).join(' · ') : 'sin re-reservas aún'}`
+        + `${j.lostSeats ? `<br><span style="color:var(--pink)">${j.lostSeats} butacas perdidas en huecos (en total)</span>` : ''}`;
+    })()],
+    ['Ráfaga al vencer', j.burst === false ? 'desactivada' : `cada ${fmtS(j.burstIntervalMs)} desde ${fmtS(j.burstLeadMs)} antes hasta ${fmtS(j.burstSpanMs)} después`
+      + `${j.holdGuessMs && !j.holdSamples?.length ? ` · retención conocida: ${fmtMin(j.holdGuessMs)}` : ''}`],
+    ['Renovación',       !j.renew ? 'desactivada' : ({ works: '<span style="color:#1c9a54">✅ funciona: sin hueco</span>', fails: '<span style="color:var(--orange)">no funciona con este cine (desactivada sola)</span>',
+                           testing: 'probando…' }[j.renewState] || `se probará ${fmtS(j.renewLeadMs)} antes del vencimiento`)],
+    ['Órdenes',          j.orders?.length ? `<div class="orders-list">${j.orders.map(o => `
+      <div class="ord-row"><span class="mono">${esc(o.uid.slice(0, 8))}</span> <span>${esc(o.seats.join(' '))}</span>
+      </div>`).join('')}</div>` : '—'],
     ['Retención',        holdCell],
     ['Plan de revisiones', planHtml(j)],
     ['Si falla',         `reintento cada ${j.retryMinMs / 1000}–${j.retryMaxMs / 1000} s (aleatorio)`],
@@ -1353,6 +2011,315 @@ function renderLog(log) {
 }
 
 const SOURCE_LABEL = { auto: 'Automático', manual: 'Manual', test: 'Test' };
+
+// ── Análisis: pestañas con gráficos y registros del job elegido ──────────────
+// Datos pesados (línea de tiempo, huecos, eventos) por /bot/jobs/:id/insights, solo para el job elegido.
+const VZ = { s1: '#2a78d6', s2: '#eb6834', good: '#0ca30c', critical: '#d03b3b', neutral: '#9aa0b4',
+             grid: '#e6e9f0', axis: '#c9cedb', text: '#1f1f2e', text2: '#55586c', muted: '#8d90a5', surface: '#ffffff' };
+const ana = { tab: 'resumen', data: null, dataFor: null, events: null, loadedAt: 0, sig: '', range: 60, evFilter: 'all' };
+try { ana.tab = localStorage.getItem('anaTab') || 'resumen'; ana.range = +localStorage.getItem('anaRange') || 60; } catch {}
+
+function setAnaTab(t) {
+  ana.tab = t;
+  try { localStorage.setItem('anaTab', t); } catch {}
+  ana.sig = '';
+  renderAnalysis();
+}
+function onAnaJobChange() { ana.data = null; ana.events = null; ana.sig = ''; renderHistory(); loadInsights(true); }
+
+async function loadInsights(force = false) {
+  if (!force && Date.now() - ana.loadedAt < 2500) return;
+  ana.loadedAt = Date.now();
+  const id = $('histFilter').value;
+  if (id) {
+    const d = await ap(`/bot/jobs/${id}/insights`).catch(() => null);
+    if ($('histFilter').value !== id) return;
+    ana.data = d; ana.dataFor = id;
+  } else {
+    ana.data = null; ana.dataFor = '';
+    ana.events = (await ap('/bot/events').catch(() => ({ events: [] }))).events;
+  }
+  renderAnalysis();
+}
+
+// ── Utilidades de gráficos (SVG a mano) ──
+const svgNS = 'http://www.w3.org/2000/svg';
+const fmtHM = t => new Date(t).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtSec = ms => ms < 10000 ? `${(ms / 1000).toFixed(1)} s` : ms < 120000 ? `${Math.round(ms / 1000)} s` : `${(ms / 60000).toFixed(1)} min`;
+function niceTicks(max, n = 4) {
+  if (max <= 0) return [0, 1];
+  const raw = max / n, mag = 10 ** Math.floor(Math.log10(raw));
+  const step = [1, 2, 2.5, 5, 10].map(f => f * mag).find(s => s >= raw);
+  const out = [];
+  for (let v = 0; v <= max + 1e-9; v += step) out.push(+v.toFixed(6));
+  if (out[out.length - 1] < max) out.push(+(out[out.length - 1] + step).toFixed(6));
+  return out;
+}
+const roundTop = (x, y, w, h, r = 4) => { r = Math.max(0, Math.min(r, w / 2, h)); return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`; };
+const roundRight = (x, y, w, h, r = 4) => { r = Math.max(0, Math.min(r, h / 2, w)); return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`; };
+
+// Tooltip único: valor primero (fuerte), etiqueta después; textos con textContent
+function vzTip(e, title, rows) {
+  let tip = $('vzTip');
+  if (!tip) { tip = document.createElement('div'); tip.id = 'vzTip'; tip.className = 'vz-tip'; document.body.appendChild(tip); }
+  tip.replaceChildren();
+  if (title) { const h = document.createElement('div'); h.className = 'vz-tip-h'; h.textContent = title; tip.appendChild(h); }
+  for (const r of rows) {
+    const row = document.createElement('div'); row.className = 'vz-tip-r';
+    if (r.color) { const k = document.createElement('i'); k.style.background = r.color; row.appendChild(k); }
+    const v = document.createElement('b'); v.textContent = r.value; row.appendChild(v);
+    const l = document.createElement('span'); l.textContent = r.label; row.appendChild(l);
+    tip.appendChild(row);
+  }
+  tip.style.display = 'block';
+  const x = Math.min(window.innerWidth - tip.offsetWidth - 8, e.clientX + 14), y = Math.max(8, e.clientY - tip.offsetHeight - 10);
+  tip.style.left = `${x}px`; tip.style.top = `${y}px`;
+}
+function vzTipHide() { const t = $('vzTip'); if (t) t.style.display = 'none'; }
+
+function legendHtml(items) {
+  return `<div class="vz-legend">${items.map(i => `<span><i class="${i.line ? 'ln' : ''}" style="background:${i.color}"></i>${esc(i.name)}</span>`).join('')}</div>`;
+}
+
+// Líneas escalonadas en el tiempo (el estado del bloque cambia a saltos), con cursor que sigue la X
+function vzStepLines(el, { series, t0, t1, yMax, target, targetLabel, height = 220 }) {
+  const W = Math.max(300, el.clientWidth), H = height, m = { l: 34, r: 70, t: 12, b: 24 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const X = t => m.l + (t - t0) / Math.max(1, t1 - t0) * iw;
+  const ticks = niceTicks(yMax, 4), top = ticks[ticks.length - 1];
+  const Y = v => m.t + ih - v / Math.max(1, top) * ih;
+  let g = '';
+  for (const v of ticks) g += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(v)}" y2="${Y(v)}" stroke="${VZ.grid}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="vz-ax">${v}</text>`;
+  for (let i = 0; i <= 4; i++) { const t = t0 + (t1 - t0) * i / 4; g += `<text x="${X(t)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === 4 ? 'end' : 'middle'}" class="vz-ax">${fmtHM(t)}</text>`; }
+  if (target != null) g += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(target)}" y2="${Y(target)}" stroke="${VZ.muted}"/><text x="${m.l + iw + 6}" y="${Y(target) + 4}" class="vz-ax">${esc(targetLabel || '')}</text>`;
+  const at = (pts, t) => { let v = null; for (const p of pts) { if (p.t <= t) v = p.v; else break; } return v; };
+  const ends = [];
+  series.forEach((s, i) => {
+    const pts = s.points.filter(p => p.t <= t1);
+    if (!pts.length) return;
+    const first = { t: Math.max(t0, pts[0].t), v: at(pts, t0) ?? pts[0].v };
+    const vis = [first, ...pts.filter(p => p.t > t0)];
+    let d = `M${X(vis[0].t)},${Y(vis[0].v)}`;
+    for (const p of vis.slice(1)) d += `H${X(p.t)}V${Y(p.v)}`;
+    d += `H${X(t1)}`;
+    if (i === 0) g += `<path d="${d}V${Y(0)}H${X(vis[0].t)}Z" fill="${s.color}" fill-opacity=".1"/>`;
+    g += `<path d="${d}" fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    const lv = vis[vis.length - 1].v;
+    ends.push({ y: Y(lv), v: lv, s });
+    g += `<circle cx="${X(t1)}" cy="${Y(lv)}" r="4" fill="${s.color}" stroke="${VZ.surface}" stroke-width="2"/>`;
+  });
+  // Etiquetas al final solo si no chocan (si chocan, quedan la leyenda y el tooltip)
+  const clash = ends.some((a, i) => ends.some((b, j) => i < j && Math.abs(a.y - b.y) < 14));
+  if (!clash) for (const e of ends) g += `<text x="${X(t1) + 8}" y="${e.y + 4}" class="vz-end">${e.v}</text>`;
+  g += `<line class="vz-cross" x1="0" x2="0" y1="${m.t}" y2="${m.t + ih}" stroke="${VZ.muted}" style="display:none"/>`;
+  g += `<rect class="vz-hit" x="${m.l}" y="${m.t}" width="${iw}" height="${ih}" fill="transparent"/>`;
+  el.innerHTML = legendHtml(series.map(s => ({ name: s.name, color: s.color, line: true }))) + `<svg width="${W}" height="${H}" class="vz">${g}</svg>`;
+  const svg = el.querySelector('svg'), cross = svg.querySelector('.vz-cross'), hit = svg.querySelector('.vz-hit');
+  hit.addEventListener('pointermove', e => {
+    const r = svg.getBoundingClientRect(), x = Math.max(m.l, Math.min(m.l + iw, e.clientX - r.left));
+    const t = t0 + (x - m.l) / iw * (t1 - t0);
+    cross.setAttribute('x1', x); cross.setAttribute('x2', x); cross.style.display = '';
+    vzTip(e, fmtClock(t), series.map(s => ({ value: String(at(s.points, t) ?? '—'), label: s.name, color: s.color })));
+  });
+  hit.addEventListener('pointerleave', () => { cross.style.display = 'none'; vzTipHide(); });
+}
+
+// Columnas (una serie); las marcadas llevan un aviso ⚠ encima
+function vzColumns(el, items, { height = 200, fmt = v => v, color = VZ.s1, title = '' }) {
+  const W = Math.max(300, el.clientWidth), H = height, m = { l: 40, r: 10, t: 18, b: 24 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const ticks = niceTicks(Math.max(...items.map(i => i.v), 1), 4), top = ticks[ticks.length - 1];
+  const Y = v => m.t + ih - v / top * ih;
+  const band = iw / Math.max(1, items.length), bw = Math.max(3, Math.min(24, band - 2));
+  let g = '';
+  for (const v of ticks) g += `<line x1="${m.l}" x2="${m.l + iw}" y1="${Y(v)}" y2="${Y(v)}" stroke="${VZ.grid}"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="vz-ax">${fmt(v)}</text>`;
+  items.forEach((it, i) => {
+    const x = m.l + i * band + (band - bw) / 2, h = Math.max(1, ih - (Y(it.v) - m.t));
+    g += `<path d="${roundTop(x, Y(it.v), bw, h)}" fill="${color}" class="vz-bar" data-i="${i}"/>`;
+    if (it.flag) g += `<circle cx="${x + bw / 2}" cy="${Y(it.v) - 9}" r="4" fill="${VZ.critical}" stroke="${VZ.surface}" stroke-width="2"/>`;
+    g += `<rect x="${m.l + i * band}" y="${m.t}" width="${band}" height="${ih}" fill="transparent" data-i="${i}" class="vz-hitbar"/>`;
+  });
+  const step = Math.ceil(items.length / 6);
+  items.forEach((it, i) => { if (i % step === 0 || i === items.length - 1) g += `<text x="${m.l + i * band + band / 2}" y="${H - 6}" text-anchor="middle" class="vz-ax">${esc(it.label)}</text>`; });
+  el.innerHTML = (title ? `<div class="vz-title">${esc(title)}</div>` : '') + `<svg width="${W}" height="${H}" class="vz">${g}</svg>`;
+  for (const r of el.querySelectorAll('.vz-hitbar')) {
+    const it = items[+r.dataset.i], bar = el.querySelector(`.vz-bar[data-i="${r.dataset.i}"]`);
+    r.addEventListener('pointermove', e => { bar.style.opacity = .75; vzTip(e, it.tipTitle, it.tip); });
+    r.addEventListener('pointerleave', () => { bar.style.opacity = ''; vzTipHide(); });
+  }
+}
+
+// Barras horizontales apiladas (una por hilo), 2 px de separación entre segmentos
+function vzStack(el, rows, keys) {
+  const W = Math.max(300, el.clientWidth), bh = 18, gap = 14, m = { l: 58, r: 48, t: 6, b: 6 };
+  const H = m.t + m.b + rows.length * (bh + gap) - gap, iw = W - m.l - m.r;
+  const max = Math.max(1, ...rows.map(r => keys.reduce((n, k) => n + (r.parts[k.k] || 0), 0)));
+  let g = '';
+  rows.forEach((r, ri) => {
+    const y = m.t + ri * (bh + gap);
+    g += `<text x="${m.l - 8}" y="${y + bh / 2 + 4}" text-anchor="end" class="vz-lbl">${esc(r.label)}</text>`;
+    let x = m.l, total = 0;
+    const segs = keys.filter(k => r.parts[k.k] > 0);
+    segs.forEach((k, si) => {
+      const v = r.parts[k.k]; total += v;
+      const w = v / max * iw, last = si === segs.length - 1, ww = Math.max(1, last ? w : w - 2);
+      g += `<path d="${last ? roundRight(x, y, ww, bh) : `M${x},${y}h${ww}v${bh}h${-ww}Z`}" fill="${k.color}" class="vz-seg" data-r="${ri}" data-k="${k.k}"/>`;
+      x += w;
+    });
+    g += `<text x="${x + 6}" y="${y + bh / 2 + 4}" class="vz-end">${total}</text>`;
+  });
+  el.innerHTML = legendHtml(keys) + `<svg width="${W}" height="${H}" class="vz">${g}</svg>`;
+  for (const s of el.querySelectorAll('.vz-seg')) {
+    const r = rows[+s.dataset.r], k = keys.find(k => k.k === s.dataset.k);
+    s.addEventListener('pointermove', e => { s.style.opacity = .75; vzTip(e, r.label, [{ value: String(r.parts[k.k]), label: k.name, color: k.color }]); });
+    s.addEventListener('pointerleave', () => { s.style.opacity = ''; vzTipHide(); });
+  }
+}
+
+// ── Pestañas ──
+const statTile = (value, label, cls = '', sub = '') => `<div class="stat ${cls}"><b>${value}</b><span>${label}</span>${sub ? `<div class="stat-sub">${sub}</div>` : ''}</div>`;
+
+function renderAnalysis() {
+  const id = $('histFilter').value;
+  const job = state.jobs.find(j => j.id === id);
+  for (const b of document.querySelectorAll('#anaTabs button')) b.classList.toggle('on', b.dataset.tab === ana.tab);
+  for (const p of document.querySelectorAll('.ana-pane')) p.style.display = p.id === `pane-${ana.tab}` ? '' : 'none';
+  if (ana.tab === 'intentos') return;   // la tabla la mantiene renderHistory
+  const d = ana.dataFor === id ? ana.data : null;
+  // No redibujar si nada cambió (mantiene el tooltip y el cursor)
+  const sig = JSON.stringify([ana.tab, id, ana.range, ana.evFilter, d?.timeline?.length, d?.timeline?.[d.timeline.length - 1], d?.exposure?.length,
+    d?.events?.[0]?.time, d?.byHilo, ana.events?.[0]?.time, job && [job.seatState, job.successes, job.attempts, job.lostSeats, job.paused],
+    !job && state.stats, $('pane-' + ana.tab)?.clientWidth]);
+  if (sig === ana.sig) return;
+  ana.sig = sig;
+  const pane = $(`pane-${ana.tab}`);
+  const needJob = msg => { pane.innerHTML = `<div class="ana-empty">${msg}</div>`; };
+
+  if (ana.tab === 'resumen') {
+    if (!job) return renderGlobalSummary(pane);
+    const active = j => j.targetSeats.filter(t => !j.releases?.[t.label]);
+    const st = {};
+    for (const t of job.targetSeats) { const k = job.seatState?.[t.label] || 'sin'; st[k] = (st[k] || 0) + 1; }
+    const nAct = active(job).length, held = st.held || 0;
+    // Cobertura: % del tiempo (rango elegido) con todo el bloque activo retenido
+    const tl = d?.timeline || [], now = d?.now || Date.now(), from = now - ana.range * 60000;
+    let full = 0, span = 0;
+    tl.forEach((p, i) => {
+      const a = Math.max(p.t, from), b = Math.min(tl[i + 1]?.t ?? now, now);
+      if (b <= a) return;
+      span += b - a;
+      if (p.held >= p.n - p.rel && p.n - p.rel > 0) full += b - a;
+    });
+    const ex = (d?.exposure || []).slice(-10);
+    const avg = ex.length ? ex.reduce((n, x) => n + x.ms, 0) / ex.length : null;
+    const hs = d?.holdSamples || [];
+    pane.innerHTML = `<div class="ana-tiles">
+      ${statTile(`${held} / ${nAct}`, 'Retenidas ahora', held === nAct && nAct ? 'good' : held ? 'warn' : '')}
+      ${statTile(span ? `${Math.round(full / span * 100)}%` : '—', `Bloque completo (${rangeTxt()})`, '', span ? `del tiempo con las ${nAct} retenidas` : 'sin datos aún')}
+      ${statTile(avg != null ? '~' + fmtSec(avg) : '—', 'Hueco promedio', avg == null ? '' : avg < 2000 ? 'good' : 'warn', ex.length ? `últimas ${ex.length} re-reservas` : 'sin re-reservas aún')}
+      ${statTile(job.lostSeats || 0, 'Perdidas en huecos', job.lostSeats ? 'bad' : '')}
+      ${statTile(hs.length ? fmtSec(Math.min(...hs.map(x => x.ms))) : job.holdGuessMs ? fmtSec(job.holdGuessMs) : '—', 'Retención del cine', '', hs.length ? `${hs.length} medicion${hs.length > 1 ? 'es' : ''}` : job.holdGuessMs ? 'la que indicaste (sin medir)' : 'sin medir')}
+      ${statTile(`${job.successes} / ${job.attempts}`, 'Reservas / intentos')}
+    </div>
+    <div class="vz-title" style="margin-top:14px">Estado del bloque ahora</div><div id="anaNow"></div>`;
+    const keys = [
+      { k: 'held', name: 'Retenidas por el bot', color: VZ.s1 }, { k: 'taken', name: 'Ocupadas por otros', color: VZ.s2 },
+      { k: 'free', name: 'Libres', color: VZ.neutral }, { k: 'released', name: 'Liberadas para ti', color: '#ffc100' },
+      { k: 'forme', name: '¡Libres para ti!', color: '#1ccfd9' },
+    ];
+    vzStack($('anaNow'), [{ label: 'Bloque', parts: st }], keys.filter(k => st[k.k]));
+    return;
+  }
+
+  if (!job && ana.tab !== 'eventos') return needJob('Elige un job arriba para ver este gráfico.');
+  if (!d && ana.tab !== 'eventos') return needJob('Cargando…');
+
+  if (ana.tab === 'retencion') {
+    const now = d.now, t0 = Math.max(now - ana.range * 60000, d.timeline[0]?.t ?? now - 60000), tl = d.timeline;
+    pane.innerHTML = `${rangeChips()}<div id="anaLine"></div>
+      <div class="ana-note">Escalonado: cambia en cada revisión. La línea gris es el tamaño del bloque (sin las liberadas para ti).</div>`;
+    if (tl.length < 2) { $('anaLine').innerHTML = '<div class="ana-empty">Aún no hay suficientes revisiones para la línea de tiempo.</div>'; return; }
+    const target = tl[tl.length - 1].n - tl[tl.length - 1].rel;
+    vzStepLines($('anaLine'), {
+      t0, t1: now, yMax: Math.max(...tl.map(p => p.n)), target, targetLabel: `Bloque ${target}`,
+      series: [{ name: 'Retenidas por el bot', color: VZ.s1, points: tl.map(p => ({ t: p.t, v: p.held })) },
+               { name: 'Ocupadas por otros', color: VZ.s2, points: tl.map(p => ({ t: p.t, v: p.taken })) }],
+    });
+    return;
+  }
+
+  if (ana.tab === 'huecos') {
+    const ex = d.exposure;
+    const hs = d.holdSamples;
+    const avg = ex.length ? ex.reduce((n, x) => n + x.ms, 0) / ex.length : null;
+    pane.innerHTML = `<div class="ana-tiles">
+        ${statTile(avg != null ? '~' + fmtSec(avg) : '—', 'Hueco promedio', avg == null ? '' : avg < 2000 ? 'good' : 'warn')}
+        ${statTile(ex.length ? fmtSec(Math.min(...ex.map(x => x.ms))) : '—', 'Mejor hueco')}
+        ${statTile(ex.length ? fmtSec(Math.max(...ex.map(x => x.ms))) : '—', 'Peor hueco')}
+        ${statTile(job.lostSeats || 0, 'Perdidas en huecos', job.lostSeats ? 'bad' : '', 'en total')}
+      </div><div id="anaCols"></div>
+      <div class="ana-note">Cada columna es una re-reserva: segundos que las butacas estuvieron libres entre que venció la retención y el bot las volvió a tomar.
+        <span style="color:${VZ.critical}">●</span> = vuelta en la que otra persona se llevó butacas.</div>
+      ${hs.length ? `<div class="vz-title" style="margin-top:14px">Retención medida del cine</div><div class="ana-list">${hs.slice().reverse().map(x =>
+        `<div><b>${fmtSec(x.ms)}</b> <span>entre ${fmtSec(x.loMs)} y ${fmtSec(x.hiMs)} · ${fmtClock(x.at)}</span></div>`).join('')}</div>` : ''}`;
+    if (!ex.length) { $('anaCols').innerHTML = '<div class="ana-empty">Aún no hubo re-reservas (la retención todavía no venció).</div>'; return; }
+    vzColumns($('anaCols'), ex.map(x => ({
+      v: x.ms / 1000, label: fmtHM(x.at), flag: x.lost > 0, tipTitle: fmtClock(x.at),
+      tip: [{ value: '~' + fmtSec(x.ms), label: 'hueco', color: VZ.s1 }, { value: fmtSec(x.maxMs), label: 'máximo posible' },
+            ...(x.lost ? [{ value: `⚠ ${x.lost}`, label: 'butacas perdidas', color: VZ.critical }] : [])],
+    })), { fmt: v => `${v}s`, title: 'Hueco en cada re-reserva (segundos)' });
+    return;
+  }
+
+  if (ana.tab === 'hilos') {
+    const keys = [{ k: 'ok', name: '✓ Reservó', color: VZ.good }, { k: 'hold', name: '⏱ Revisó (retención)', color: VZ.s1 },
+                  { k: 'watch', name: '👁 Vigiló liberadas', color: VZ.neutral }, { k: 'failed', name: '✕ Falló', color: VZ.critical }];
+    const rows = Object.entries(d.byHilo).sort(([a], [b]) => a - b).map(([n, c]) => ({
+      label: `Hilo ${n}`, parts: { ok: (c.reserved || 0) + (c.partial || 0), hold: c.hold || 0, watch: c.watch || 0, failed: c.failed || 0 } }));
+    pane.innerHTML = `<div class="ana-note" style="margin-top:0">Turnos de cada hilo en los últimos ${d.historyCount} intentos guardados.</div><div id="anaStack"></div>`;
+    if (!rows.length) { $('anaStack').innerHTML = '<div class="ana-empty">Aún sin turnos.</div>'; return; }
+    vzStack($('anaStack'), rows, keys.filter(k => rows.some(r => r.parts[k.k])));
+    return;
+  }
+
+  if (ana.tab === 'eventos') {
+    const list = job ? (d?.events || []) : (ana.events || []);
+    const F = { all: () => true, res: e => /RESERV|Compradas|Renovaci/.test(e.msg),
+                avisos: e => /LIBRES|Liberadas|Vuelven|Pausa|ya no están libres/.test(e.msg),
+                prob: e => e.type === 'error' || /Perdidas|fallid|rechaz|Error/i.test(e.msg) };
+    const shown = list.filter(F[ana.evFilter] || F.all);
+    const ico = e => e.type === 'error' ? '✕' : /Perdidas/.test(e.msg) ? '⚠' : /LIBRES|Liberadas/.test(e.msg) ? '🔔' : /RESERV/.test(e.msg) ? '✓' : e.type === 'warn' ? '!' : '·';
+    pane.innerHTML = `<div class="ana-chips">${[['all', 'Todos'], ['res', 'Reservas'], ['avisos', 'Avisos'], ['prob', 'Problemas']].map(([k, t]) =>
+        `<button class="${ana.evFilter === k ? 'on' : ''}" onclick="ana.evFilter='${k}'; ana.sig=''; renderAnalysis()">${t}</button>`).join('')}</div>
+      <div class="ana-events">${shown.length ? shown.slice(0, 120).map(e => `
+        <div class="ev ev-${e.type}"><span class="ev-i">${ico(e)}</span><time>${new Date(e.time).toDateString() === new Date().toDateString() ? '' : fmtDay(e.time) + ' '}${fmtClock(e.time)}</time>
+          <div>${e.jobName ? `<b>${esc(e.jobName)}</b> · ` : ''}${esc(e.msg)}</div></div>`).join('') : '<div class="ana-empty">Sin eventos con este filtro.</div>'}</div>`;
+  }
+}
+
+function renderGlobalSummary(pane) {
+  const st = state.stats || {};
+  const run = state.jobs.filter(j => j.running);
+  pane.innerHTML = `<div class="ana-tiles">
+      ${statTile(`${st.held || 0} / ${st.target || 0}`, 'Retenidas (todos)', st.target && st.held === st.target ? 'good' : st.held ? 'warn' : '')}
+      ${statTile(st.lastGap ? '~' + fmtSec(st.lastGap.ms) : '—', 'Último hueco')}
+      ${statTile(st.lost || 0, 'Perdidas en huecos', st.lost ? 'bad' : '')}
+      ${statTile(run.length, 'Jobs corriendo')}
+    </div>
+    <table class="ana-table"><tr><th>Job</th><th>Retenidas</th><th>Último hueco</th><th>Perdidas</th></tr>
+      ${run.map(j => { const a = j.targetSeats.filter(t => !j.releases?.[t.label]); const h = a.filter(t => j.seatState?.[t.label] === 'held').length;
+        return `<tr onclick="$('histFilter').value='${j.id}'; onAnaJobChange()"><td>${esc(j.name)}</td>
+          <td><div class="ana-meter"><i style="width:${a.length ? h / a.length * 100 : 0}%"></i></div>${h} / ${a.length}</td>
+          <td>${j.lastGapMs != null ? '~' + fmtSec(j.lastGapMs) : '—'}</td><td>${j.lostSeats || 0}</td></tr>`; }).join('') || '<tr><td colspan="4" class="hist-empty">Ningún job corriendo</td></tr>'}
+    </table><div class="ana-note">Clic en un job para ver su análisis.</div>`;
+}
+
+const rangeTxt = () => ana.range >= 100000 ? 'todo' : ana.range >= 60 ? `última${ana.range > 60 ? 's' : ''} ${ana.range / 60} h` : `últimos ${ana.range} min`;
+function rangeChips() {
+  return `<div class="ana-chips">${[[15, '15 min'], [60, '1 h'], [360, '6 h'], [1e6, 'Todo']].map(([v, t]) =>
+    `<button class="${ana.range === v ? 'on' : ''}" onclick="ana.range=${v}; try{localStorage.setItem('anaRange',${v})}catch{}; ana.sig=''; renderAnalysis()">${t}</button>`).join('')}</div>`;
+}
+window.addEventListener('resize', () => { ana.sig = ''; renderAnalysis(); });
 
 function renderHistory() {
   // Opciones del filtro
@@ -1437,6 +2404,7 @@ function kindBadge(kind) {
     failed:   ['badge-pink',   'Fallido'],
     test:     ['badge-yellow', 'Test OK'],
     free:     ['badge-alert',  'Libres (aviso)'],
+    watch:    ['badge-paused', 'Vigilando'],
   };
   const [cls, txt] = B[kind] || B.failed;
   return `<span class="badge ${cls}">${txt}</span>`;
@@ -1461,6 +2429,10 @@ async function pollStatus() {
     const s = await ap('/bot/status');
     state.role = s.role;
     state.jobs = s.jobs || [];
+    state.stats = s.stats || null;
+    if (!state.profiles && s.profiles) { state.profiles = s.profiles; if (!state.editingJobId) applyPreset('normal'); $('presetHint').textContent = ''; }
+    state.profiles = s.profiles || state.profiles;
+    renderStatusBar();
     if (state.editingJobId && !editingJob()) state.editingJobId = null;
 
     $('sessIndicator').classList.toggle('ok', !!s.sessionReady);
@@ -1469,13 +2441,14 @@ async function pollStatus() {
     $('tabPasswordsBtn').style.display = s.role === 'admin' ? '' : 'none';
 
     renderEditor();
-    renderAlerts(state.jobs.filter(j => j.running && j.paused && j.alert && !j.alert.ack).map(j => ({
-      jobId: j.id, name: j.name, cinemaName: j.cinemaName, movieTitle: j.movieTitle, showtime: j.showtime,
-      screenName: j.screenName, seats: j.alert.seats, taken: j.alert.taken, at: j.alert.at })));
+    renderAlerts(releaseAlerts());
+    if (seatsUI.open) renderSeatsMap();
     renderJobs();
     renderJob();
     renderLog(s.log || []);
     renderHistory();
+    renderAnalysis();
+    loadInsights();
 
     // Si cambió el estado de las butacas del job abierto (retenida / perdida), refrescar el mapa
     const j   = editingJob();
@@ -1495,27 +2468,56 @@ async function pollStatus() {
 const alertSeen = new Set();
 const baseTitle = document.title;
 let simAlert = null, lastAlerts = [];
+// Liberadas libres (¡cómpralas!) o que se ocuparon (¿las compraste?), sin silenciar
+function releaseAlerts() {
+  const out = [];
+  for (const j of state.jobs) {
+    const rel = Object.entries(j.releases || {}).filter(([, r]) => !r.ack && (r.status === 'free' || r.status === 'gone'));
+    if (!rel.length) continue;
+    out.push({ jobId: j.id, cinemaId: j.cinemaId, sessionId: j.sessionId, cinemaName: j.cinemaName, movieTitle: j.movieTitle,
+      showtime: j.showtime, screenName: j.screenName,
+      seats: rel.filter(([, r]) => r.status === 'free').map(([l]) => l), gone: rel.filter(([, r]) => r.status === 'gone').map(([l]) => l),
+      at: Math.min(...rel.map(([, r]) => r.since)) });
+  }
+  return out;
+}
+
 function renderAlerts(alerts) {
   lastAlerts = alerts;
   alerts = simAlert ? [simAlert, ...alerts] : alerts;
+  const where = a => `${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(`${fmtDay(a.showtime)} ${fmtTime(a.showtime)}`)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''}`;
   $('alerts').innerHTML = alerts.map(a => a.sim ? simAlertHtml(a) : `
-    <div class="alert-box" style="margin-top:14px">
+    ${a.seats.length ? `<div class="alert-box" style="margin-top:14px">
       <div class="alert-ico">🔔</div>
       <div class="alert-main">
-        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo</div>
-        <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)} · ${a.showtime ? esc(`${fmtDay(a.showtime)} ${fmtTime(a.showtime)}`) : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
+        <div class="alert-title">¡Tus butacas están libres! Cómpralas ya desde otro dispositivo</div>
+        <div class="alert-sub">${where(a)} · libres desde las ${fmtClock(a.at)}</div>
         <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
-        ${a.taken?.length ? `<div class="alert-sub" style="margin-top:6px">No disponibles: ${esc(a.taken.join(', '))}</div>` : ''}
       </div>
       <div class="alert-actions">
-        <button class="btn btn-sm solid" onclick="pauseJob('${a.jobId}', false)" title="Quita la pausa: el bot las reserva ahora">🤖 Que las reserve el bot</button>
-        <button class="btn btn-sm" onclick="selectJob('${a.jobId}')">Ver job</button>
-        <button class="btn btn-sm" onclick="ackAlert('${a.jobId}')" title="Oculta el aviso; vuelve a avisar si cambian las butacas libres">✕ Descartar</button>
+        <button class="btn btn-sm solid" onclick="alertAct('${a.jobId}','bought')" title="Salen del job: el bot ya no las busca">✅ Ya las compré</button>
+        <button class="btn btn-sm" onclick="alertAct('${a.jobId}','take')" title="El bot las vuelve a reservar">🔒 Que el bot las tome</button>
+        <button class="btn btn-sm" onclick="openSeats('${a.jobId}')">Ver sala</button>
+        <button class="btn btn-sm" onclick="alertAct('${a.jobId}','ack')" title="Oculta el aviso (vuelve a avisar si cambian)">🔕 Silenciar</button>
       </div>
-    </div>`).join('');
-  document.title = alerts.length ? `🔔 ¡${alerts.length} aviso${alerts.length > 1 ? 's' : ''}! · ${baseTitle}` : baseTitle;
-  const fresh = alerts.filter(a => !alertSeen.has(`${a.jobId}|${a.at}`));
-  for (const a of fresh) alertSeen.add(`${a.jobId}|${a.at}`);
+    </div>` : ''}
+    ${a.gone.length ? `<div class="alert-box" style="margin-top:14px;background:linear-gradient(135deg,#7a5c00,#b07d00);animation:none">
+      <div class="alert-ico" style="animation:none">ℹ️</div>
+      <div class="alert-main">
+        <div class="alert-title">Ya no están libres: ¿las compraste?</div>
+        <div class="alert-sub">${where(a)}</div>
+        <div class="alert-seats">${a.gone.map(x => `<span style="color:#7a5c00">${esc(x)}</span>`).join('')}</div>
+      </div>
+      <div class="alert-actions">
+        <button class="btn btn-sm solid" style="color:#7a5c00" onclick="alertAct('${a.jobId}','bought','gone')">✅ Sí, compradas</button>
+        <button class="btn btn-sm" onclick="alertAct('${a.jobId}','take','gone')" title="Otra persona las tomó: que el bot las vuelva a buscar">🔒 Que el bot las vuelva a buscar</button>
+        <button class="btn btn-sm" onclick="alertAct('${a.jobId}','ack','gone')">🔕 Silenciar</button>
+      </div>
+    </div>` : ''}`).join('');
+  const nFree = alerts.filter(a => a.sim || a.seats?.length).length;
+  document.title = nFree ? `🔔 ¡${nFree} aviso${nFree > 1 ? 's' : ''}! · ${baseTitle}` : baseTitle;
+  const fresh = alerts.filter(a => (a.sim || a.seats?.length) && !alertSeen.has(`${a.jobId}|${a.seats.join()}|${a.at}`));
+  for (const a of fresh) alertSeen.add(`${a.jobId}|${a.seats.join()}|${a.at}`);
   if (fresh.length) alertNotify(fresh);
 }
 
@@ -1525,10 +2527,10 @@ function simAlertHtml(a) {
     <div class="alert-box" style="margin-top:14px">
       <div class="alert-ico">🔔</div>
       <div class="alert-main">
-        <div class="alert-title">¡Asientos libres! Resérvalos desde otro dispositivo <span style="font-size:.7rem;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:3px;vertical-align:middle">SIMULACIÓN</span></div>
+        <div class="alert-title">¡Tus butacas están libres! Cómpralas ya desde otro dispositivo <span style="font-size:.7rem;background:rgba(0,0,0,.25);padding:2px 7px;border-radius:3px;vertical-align:middle">SIMULACIÓN</span></div>
         <div class="alert-sub">${esc(a.cinemaName)} · ${esc(a.movieTitle)}${a.showtime ? ` · ${esc(`${fmtDay(a.showtime)} ${fmtTime(a.showtime)}`)}` : ''}${a.screenName ? ` · ${esc(a.screenName)}` : ''} · libres desde las ${fmtClock(a.at)}</div>
         <div class="alert-seats">${a.seats.map(x => `<span>${esc(x)}</span>`).join('')}</div>
-        <div class="alert-sub" style="margin-top:8px">Así aparecerá cuando un job <b>en pausa</b> vea sus butacas libres. Los botones reales serán: “🤖 Que las reserve el bot”, “Ver job” y “✕ Descartar”.</div>
+        <div class="alert-sub" style="margin-top:8px">Así aparecerá cuando se liberen butacas que liberaste para ti (🎟️ Liberar butacas, o un job en pausa). Los botones reales serán: “✅ Ya las compré”, “🔒 Que el bot las tome”, “Ver sala” y “🔕 Silenciar”.</div>
       </div>
       <div class="alert-actions">
         <button class="btn btn-sm solid" onclick="closeSimAlert()">✕ Cerrar simulación</button>
@@ -1543,7 +2545,7 @@ async function simulateAlert(jobId) {
     sim: true, jobId: 'sim', at: Date.now(),
     cinemaName: j?.cinemaName || 'CP Ejemplo', movieTitle: j?.movieTitle || 'Película de ejemplo',
     showtime: j?.showtime || null, screenName: j?.screenName || 'Sala 1',
-    seats: j?.targetSeats?.length ? j.targetSeats.map(t => t.label) : ['F8', 'F9', 'F10', 'F11', 'F12'],
+    seats: j?.targetSeats?.length ? j.targetSeats.slice(0, 3).map(t => t.label) : ['F8', 'F9', 'F10'], gone: [],
   };
   renderAlerts(lastAlerts);
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1667,13 +2669,13 @@ async function copyHeader() {
 function renderPasswords(list) {
   $('pwRows').innerHTML = list.length ? list.map(p => `
     <tr>
-      <td class="mono">${esc(p.password)}</td>
+      <td class="mono" title="Guardada con hash: solo se muestran los primeros caracteres">${esc(p.hint)}</td>
       <td>${esc(p.label) || '<span style="color:var(--muted)">—</span>'}</td>
       <td>${p.source === 'env' ? '<span class="badge badge-gray">.env</span>' : '<span class="badge badge-green">Panel</span>'}</td>
       <td>${p.createdAt ? `${fmtDay(p.createdAt)} ${fmtTime(p.createdAt)}` : '—'}</td>
-      <td><button class="icon-btn" title="Eliminar" data-pw="${esc(p.password)}">×</button></td>
+      <td><button class="icon-btn" title="Eliminar" data-pw="${esc(p.id)}" data-hint="${esc(p.hint)}">×</button></td>
     </tr>`).join('') : '<tr><td colspan="5" class="hist-empty">No hay contraseñas de usuario. Solo entra el admin.</td></tr>';
-  for (const b of $('pwRows').querySelectorAll('[data-pw]')) b.onclick = () => deletePassword(b.dataset.pw);
+  for (const b of $('pwRows').querySelectorAll('[data-pw]')) b.onclick = () => deletePassword(b.dataset.pw, b.dataset.hint);
 }
 
 async function loadPasswords() {
@@ -1687,12 +2689,12 @@ async function createPassword() {
   if (r.error) return configMsg(r.error, false, 'pwMsg');
   $('pwLabel').value = ''; $('pwNew').value = '';
   renderPasswords(r.passwords);
-  configMsg(`Contraseña creada: ${r.password}`, true, 'pwMsg');
+  configMsg(`Contraseña creada: ${r.password} (anótala: después solo se verán sus primeros caracteres)`, true, 'pwMsg');
 }
 
-async function deletePassword(pw) {
-  if (!confirm(`¿Eliminar la contraseña "${pw}"? Quien la use perderá el acceso.`)) return;
-  const r = await postJ('/admin/passwords/delete', { password: pw }).catch(e => ({ error: e.message }));
+async function deletePassword(id, hint) {
+  if (!confirm(`¿Eliminar la contraseña "${hint}"? Quien la use perderá el acceso.`)) return;
+  const r = await postJ('/admin/passwords/delete', { id }).catch(e => ({ error: e.message }));
   if (r.error) return configMsg(r.error, false, 'pwMsg');
   renderPasswords(r.passwords);
   configMsg('Contraseña eliminada.', true, 'pwMsg');
