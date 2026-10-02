@@ -13,6 +13,7 @@ Panel web para programar jobs que reservan y mantienen retenidas butacas de una 
 - Hilos por reserva: se turnan para revisar al ritmo configurado. Al ver butacas libres disparan con respaldo (si el cine da error, el siguiente hilo al instante) o todos a la vez. Si una orden falla, se vuelve a mirar la sala al instante y se dispara con las que siguen libres. Los bloques grandes se reparten en varias órdenes (máximo por orden configurable; si el cine rechaza ese tamaño, el bot lo ajusta solo).
 - **Ráfaga al vencer**: con la retención medida (o la que indiques), unos segundos antes del vencimiento revisa cada segundo y re-reserva en cuanto se liberan, para dejar el menor hueco posible a otros compradores. El panel muestra el hueco medido y las butacas perdidas en huecos.
 - **Renovar antes de vencer** (experimental): reenvía cada orden con su mismo `userSessionId` antes de que venza; si el cine extiende la retención, no hay hueco. Se verifica solo y se desactiva si no funciona.
+- **Actividad de los vigías** (panel principal y `/preestreno`): salud (funcionando / con errores / sin respuesta / detenido), qué está haciendo, cuenta atrás a la próxima consulta, consultas y tiempo de respuesta de los últimos 5 min, funciones vistas por cine y último evento.
 - **Análisis** (panel inferior, por job): resumen con indicadores, línea de tiempo de butacas retenidas, huecos de cada re-reserva, actividad por hilo, eventos importantes filtrables y la tabla de intentos.
 - Avisos por Telegram (opcional), aunque el panel esté cerrado.
 - Límite global de tráfico hacia el cine (`CINE_RPS`, `CINE_CONCURRENCY`), con prioridad para las reservas.
@@ -103,6 +104,7 @@ deploy/                config de nginx (4100 → 5100, o HTTPS)
 public/index.html      panel
 public/preestreno.html consultar si una película ya tiene funciones (/preestreno)
 public/login.html      acceso
+public/vigia-pulso.js  pulso de los vigías (compartido por el panel y /preestreno)
 mock/                  cine simulado para pruebas (node mock/run.js)
 test/                  escenarios automáticos contra el cine simulado (npm test)
 data/                  jobs, vigías, contraseñas del panel e histórico (se crea solo)

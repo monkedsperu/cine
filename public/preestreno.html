@@ -166,6 +166,7 @@ button, input { font-family: inherit; }
 .watchers { padding: 6px 20px 20px; display: flex; flex-direction: column; gap: 14px; }
 .watchers-empty { padding: 4px 20px 18px; color: var(--muted); font-size: .85rem; }
 .wcard { border: 1px solid var(--border); border-radius: var(--radius); }
+.wpulse { padding: 10px 14px 12px; border-top: 1px solid var(--border); background: #fbfbfe; }
 .wcard.found { border-color: var(--green); box-shadow: 0 0 0 3px rgba(47,204,113,.12); }
 .whead { display: flex; gap: 14px; padding: 12px 14px; align-items: flex-start; flex-wrap: wrap; }
 .whead .poster { width: 44px; height: 64px; }
@@ -294,6 +295,7 @@ button, input { font-family: inherit; }
   </div>
 </main>
 
+<script src="/vigia-pulso.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -820,7 +822,6 @@ function renderWatchers(list) {
       : w.slowMode ? `<span class="st st-found">✓ Funciones reservadas · revisa cada ${(w.slowPollMs || 60000) / 1000} s</span>`
       : w.foundAt ? '<span class="st st-found">🎉 Funciones detectadas · faltan cines</span>'
       : '<span class="st st-run">Vigilando…</span>';
-    const next = w.running && w.nextAt ? ` · próxima en ${Math.max(0, Math.round((w.nextAt - Date.now()) / 1000))} s` : '';
     const rows = w.sessions.map(x => `
       <tr>
         <td><b>${esc(x.cinemaName)}</b><br><span class="muted">${x.showtime ? esc(`${fmtDate(x.showtime.slice(0, 10))} ${fmtTime(x.showtime)}`) : esc(x.key)}${x.screenName ? ' · ' + esc(x.screenName) : ''}</span></td>
@@ -837,11 +838,7 @@ function renderWatchers(list) {
             <div class="wline">Cines: <b>${w.cinemas.map(c => esc(c.name)).join(', ')}</b></div>
             <div class="wline">máx. ${w.sessionsPerCinema} funciones por cine (primera + ${esc(w.prefFrom)}–${esc(w.prefTo)}) · bloque ${w.blockCols || w.seatCount}×${w.blockRows || 1} · ${w.threads || 1} hilo${(w.threads || 1) > 1 ? 's' : ''} · entrada ${esc(w.ticketCode)}</div>
             ${w.retryMinMs ? `<div class="wline">Ritmo de los jobs: sin medición ${w.intervalMs / 1000} s · complementaria ${w.baselineMs ? w.baselineMs / 1000 + ' s' : 'no'} · ventana ${w.windowMinMs / 1000}–${w.windowMaxMs / 1000} s · reintento ${w.retryMinMs / 1000}–${w.retryMaxMs / 1000} s</div>` : ''}
-            <div class="wline">Cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s · ${w.checks} consultas${w.lastCheckAt ? ` · última ${fmtClock(w.lastCheckAt)}` : ''}${next}</div>
-            ${w.lastError ? `<div class="wline" style="color:#c02c4b">⚠ ${esc(w.lastError)}</div>` : ''}
-            ${w.running && !w.foundAt ? `<div class="wline">${!w.movieSeenAt
-              ? 'La película aún no figura en el catálogo del cine.'
-              : `<b>Aún sin funciones en los cines elegidos</b>${w.status?.others ? ` · sí tiene ${w.status.others} en otros cines` : ''}. En cuanto aparezcan, se reservan.`}</div>` : ''}
+            <div class="wline">Consulta la cartelera cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s</div>
           </div>
           <div class="wactions">
             ${w.running
@@ -853,6 +850,7 @@ function renderWatchers(list) {
             <button class="btn btn-light btn-sm" onclick="watcherAction('${w.id}','delete')">Eliminar</button>
           </div>
         </div>
+        <div class="wpulse">${watcherPulseHtml(w, Object.fromEntries(w.cinemas.map(c => [c.id, c.name])))}</div>
         ${rows ? `<table class="wsess">${rows}</table>` : ''}
         ${w.events?.length ? `<div class="wevents">${w.events.slice(0, 12).map(e => `<div class="${esc(e.type)}">${fmtClock(e.time)} ${esc(e.msg)}</div>`).join('')}</div>` : ''}
       </div>`;

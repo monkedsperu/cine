@@ -427,6 +427,14 @@ svg.vz { display: block; overflow: visible; font-family: inherit; }
 .vz-tip-r b { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .vz-tip-r span { color: #55586c; }
 
+/* Vigías en el panel */
+.wrow { display: grid; grid-template-columns: minmax(180px, 240px) 1fr; gap: 16px; padding: 12px 20px; border-top: 1px solid var(--border); }
+.wrow:first-child { border-top: none; }
+.wrow-t { font-weight: 700; font-size: .9rem; }
+.wrow-s { font-size: .74rem; color: var(--muted); margin-top: 3px; line-height: 1.45; }
+.wrow-ev { font-size: .74rem; color: var(--muted); margin-top: 6px; }
+@media (max-width: 800px) { .wrow { grid-template-columns: 1fr; gap: 8px; } }
+
 /* Barra de estado */
 .statusbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .stat { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
@@ -801,6 +809,16 @@ details.adv > summary::before { content: '▸ '; } details.adv[open] > summary::
 
     <div class="statusbar" id="statusBar"></div>
 
+    <!-- ═══════════════ VIGÍAS ═══════════════ -->
+    <div class="card" id="watchCard" style="display:none">
+      <div class="card-head">
+        <div class="card-title">Vigías de preestreno</div>
+        <div class="card-sub" id="watchSub"></div>
+        <a class="btn btn-light btn-sm" href="/preestreno">Abrir preestreno ↗</a>
+      </div>
+      <div id="watchRows"></div>
+    </div>
+
     <!-- ═══════════════ JOBS ═══════════════ -->
     <div class="card" id="jobsCard">
       <div class="card-head">
@@ -871,6 +889,7 @@ details.adv > summary::before { content: '▸ '; } details.adv[open] > summary::
 </div>
 </div>
 
+<script src="/vigia-pulso.js"></script>
 <script>
 // ── Estado ────────────────────────────────────────────────────────────────────
 const state = {
@@ -1631,6 +1650,34 @@ setTimeout(() => { for (const [id] of Object.values(PROFILE_FIELDS)) $(id)?.addE
 
 const fmtS = ms => ms == null ? '—' : ms < 10000 ? `${(ms / 1000).toFixed(1)} s` : `${Math.round(ms / 1000)} s`;
 
+// Vigías: tarjeta con el pulso de cada uno (vigia-pulso.js) e indicador en la barra de estado
+function renderWatchCard() {
+  const ws = state.watchers || [];
+  $('watchCard').style.display = ws.length ? '' : 'none';
+  if (!ws.length) return;
+  const on = ws.filter(w => w.running).length, bad = ws.filter(w => w.health === 'stale' || w.health === 'error').length;
+  $('watchSub').textContent = `${ws.length} vigía${ws.length > 1 ? 's' : ''} · ${on} activo${on !== 1 ? 's' : ''}${bad ? ` · ${bad} con problemas` : ''}`;
+  $('watchRows').innerHTML = ws.map(w => `
+    <div class="wrow">
+      <div>
+        <div class="wrow-t">${esc(w.movieTitle)}</div>
+        <div class="wrow-s">${esc(w.cinemas.map(c => c.name).join(', '))}<br>${w.jobs} job${w.jobs !== 1 ? 's' : ''} creado${w.jobs !== 1 ? 's' : ''} · cada ${w.pollMinMs / 1000}–${w.pollMaxMs / 1000} s</div>
+      </div>
+      <div>${watcherPulseHtml(w, Object.fromEntries(w.cinemas.map(c => [c.id, c.name])))}
+        ${w.lastEvent ? `<div class="wrow-ev">Último evento · ${fmtClock(w.lastEvent.time)}: ${esc(w.lastEvent.msg)}</div>` : ''}</div>
+    </div>`).join('');
+}
+
+function watchersTile() {
+  const ws = (state.watchers || []).filter(w => w.running);
+  if (!(state.watchers || []).length) return '';
+  const worst = ws.some(w => w.health === 'stale') ? 'stale' : ws.some(w => w.health === 'error') ? 'error' : ws.length ? 'ok' : 'stopped';
+  const [cls, txt] = { ok: ['good', `${ws.length} ✓`], error: ['warn', `${ws.length} ⚠`], stale: ['bad', `${ws.length} ✕`], stopped: ['', '0'] }[worst];
+  return `<div class="stat ${cls}" style="cursor:pointer" onclick="$('watchCard').scrollIntoView({behavior:'smooth'})"
+    title="${worst === 'ok' ? 'Todos los vigías consultan a tiempo' : worst === 'error' ? 'Algún vigía tiene errores' : worst === 'stale' ? 'Algún vigía no consulta hace demasiado' : 'Ningún vigía activo'}">
+    <b>${txt}</b><span>Vigías activos</span></div>`;
+}
+
 function renderStatusBar() {
   const st = state.stats;
   if (!st) { $('statusBar').innerHTML = ''; return; }
@@ -1643,6 +1690,7 @@ function renderStatusBar() {
     <div class="stat ${st.lost ? 'bad' : ''}"><b>${st.lost}</b><span>Perdidas en huecos</span></div>
     <div class="stat ${errRecent ? 'warn' : ''}"><b>${st.perMin}</b><span>Peticiones al cine / min</span>
       ${errRecent ? `<div class="stat-err" title="${esc(st.lastError.msg)}">${esc(st.lastError.msg)} · ${fmtClock(st.lastError.at)}</div>` : ''}</div>
+    ${watchersTile()}
     <div class="stat ${st.telegram ? 'good' : ''}"><b>${st.telegram ? 'Activos' : 'No'}</b><span>Avisos Telegram</span>
       ${st.telegram ? '<a href="#" style="font-size:.72rem" onclick="event.preventDefault();testTelegram()">Probar</a>' : '<span style="text-transform:none;letter-spacing:0" title="Pon TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID en .env">Configurar en .env</span>'}</div>`;
 }
@@ -2430,6 +2478,8 @@ async function pollStatus() {
     state.role = s.role;
     state.jobs = s.jobs || [];
     state.stats = s.stats || null;
+    state.watchers = s.watchers || [];
+    renderWatchCard();
     if (!state.profiles && s.profiles) { state.profiles = s.profiles; if (!state.editingJobId) applyPreset('normal'); $('presetHint').textContent = ''; }
     state.profiles = s.profiles || state.profiles;
     renderStatusBar();

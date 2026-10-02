@@ -1696,6 +1696,26 @@ function newWatcher(b) {
   return w;
 }
 
+// Salud: 'ok' (consulta a tiempo), 'error' (la última falló), 'stale' (no consulta hace demasiado: colgado),
+// 'stopped' (detenido)
+function watcherHealth(w) {
+  if (!w.running) return 'stopped';
+  const now = Date.now();
+  if (w.busy && now - (w.busySince || now) > 30000) return 'stale';
+  const every = w.slowMode ? w.slowPollMs : w.pollMaxMs;
+  if (!w.lastCheckAt || now - w.lastCheckAt > every * 2 + 15000) return w.busy ? 'ok' : 'stale';
+  return w.lastError ? 'error' : 'ok';
+}
+
+function watcherActivitySummary(w) {
+  const now = Date.now(), act = w.activity || [];
+  const last5 = act.filter(a => now - a.t < 5 * 60000);
+  const okMs = last5.filter(a => a.ok).map(a => a.ms);
+  return { checks5m: last5.length, errors5m: last5.filter(a => !a.ok).length,
+           avgMs: okMs.length ? Math.round(okMs.reduce((n, x) => n + x, 0) / okMs.length) : null,
+           lastOkAt: w.lastOkAt || null };
+}
+
 function publicWatcher(w) {
   const o = {};
   for (const k of WATCHER_KEYS) o[k] = w[k];
@@ -1704,6 +1724,9 @@ function publicWatcher(w) {
   o.status = w.status || null;
   o.slowMode = !!w.slowMode;
   o.profileDiff = profileDiff(w);
+  o.health   = watcherHealth(w);
+  o.activity = (w.activity || []).slice(-60);
+  o.act      = watcherActivitySummary(w);
   // Funciones procesadas, con el estado actual de su job
   o.sessions = Object.entries(w.handled || {}).filter(([, h]) => h.status !== 'dropped').map(([key, h]) => {
     const j = h.jobId && jobs.get(h.jobId);
@@ -1748,16 +1771,23 @@ async function watcherTick(w) {
   clearTimeout(w.timer);
   w.nextAt = null;
   w.busy = true;
-  let changed = false;
+  w.busySince = Date.now();
+  let changed = false, err = null;
   try {
     changed = await watcherCheck(w);
     if (w.lastError) { addWLog(w, 'Consultas normalizadas'); w.lastError = null; changed = true; }
   } catch (e) {
+    err = e.message;
     if (w.lastError !== e.message) { addWLog(w, `Error consultando la cartelera: ${e.message}`, 'error'); changed = true; }
     w.lastError = e.message;
   } finally { w.busy = false; }
   w.checks++;
   w.lastCheckAt = Date.now();
+  if (!err) w.lastOkAt = w.lastCheckAt;
+  // Actividad para el panel: cuánto tardó, si fue bien y cuántas funciones vio en los cines elegidos
+  w.activity = w.activity || [];
+  w.activity.push({ t: w.lastCheckAt, ms: w.lastCheckAt - w.busySince, ok: !err, found: w.status?.selected ?? 0, err: err ? err.slice(0, 120) : null });
+  if (w.activity.length > 120) w.activity.splice(0, w.activity.length - 120);
   if (changed || w.checks % 20 === 0) saveWatchers();
   if (!w.running) return;
   // Modo lento: todos los cines elegidos ya tienen sus funciones con job. Sigue revisando (por si aparece
@@ -1788,7 +1818,7 @@ async function watcherCheck(w) {
   await ensureSession();
   const mc = await cpGet('/api/v1-web/cache/moviescache');
   const movie = (mc.movies || []).find(m => String(m.id).toUpperCase() === w.movieId);
-  if (!movie) return false;
+  if (!movie) { w.status = { inCatalog: false, selected: 0, others: 0, perCinema: {} }; return false; }
   let changed = false;
   if (!w.movieSeenAt) {
     w.movieSeenAt = Date.now();
@@ -1807,7 +1837,9 @@ async function watcherCheck(w) {
     for (const d of (c.dates || [])) for (const key of (d.sessions || [])) found.push({ cinemaId: c.cinemaId, key, date: d.date });
   }
   // Estado visible en la tarjeta del vigía (no se guarda)
-  w.status = { inCatalog: true, selected: found.length, others, preSale: !!movie.isPreSale, comingSoon: !!movie.isComingSoon };
+  const perCinema = {};
+  for (const f of found) perCinema[f.cinemaId] = (perCinema[f.cinemaId] || 0) + 1;
+  w.status = { inCatalog: true, selected: found.length, others, preSale: !!movie.isPreSale, comingSoon: !!movie.isComingSoon, perCinema };
   if (changed) {
     // "Figura en el catálogo" no significa que tenga funciones: el catálogo incluye próximos estrenos
     addWLog(w, found.length ? 'La película figura en el catálogo del cine'
@@ -2331,6 +2363,13 @@ http.createServer(async (req, res) => {
         defaults:     DEFAULTS,
         profiles:     PROFILES,
         stats:        statusStats(),
+        watchers:     [...watchers.values()].map(w => ({
+          id: w.id, movieTitle: w.movieTitle, running: w.running, health: watcherHealth(w), busy: w.busy,
+          lastCheckAt: w.lastCheckAt, nextAt: w.nextAt, checks: w.checks, slowMode: !!w.slowMode, foundAt: w.foundAt,
+          movieSeenAt: w.movieSeenAt, lastError: w.lastError, cinemas: w.cinemas, status: w.status || null,
+          jobs: Object.values(w.handled || {}).filter(h => h.status === 'job').length, lastEvent: w.events?.[0] || null,
+          act: watcherActivitySummary(w), activity: (w.activity || []).slice(-40),
+          pollMinMs: w.pollMinMs, pollMaxMs: w.pollMaxMs, slowPollMs: w.slowPollMs })),
         log:          logs.slice(0, 80),
         jobs:         [...jobs.values()].map(j => publicJob(j)),
       });
